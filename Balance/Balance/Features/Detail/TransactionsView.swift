@@ -13,6 +13,9 @@ struct TransactionsView: View {
 	@Environment(\.modelContext) private var modelContext
 	
 	@Query private var transactions: [Transaction]
+	@Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+	@AppStorage(AppPreferences.usesAutomaticTimeZoneKey) private var usesAutomaticTimeZone: Bool = true
+	@AppStorage(AppPreferences.selectedTimeZoneIdentifierKey) private var selectedTimeZoneIdentifier: String = TimeZone.autoupdatingCurrent.identifier
 	@State private var searchText: String = ""
 	@State private var showingAddTransaction = false
 	@State private var saveErrorMessage: String?
@@ -38,11 +41,24 @@ struct TransactionsView: View {
 	
 	private var groupedTransactions: [(date: Date, items: [Transaction])] {
 		let groups = Dictionary(grouping: filteredTransactions) { transaction in
-			Calendar.current.startOfDay(for: transaction.date)
+			calendar.startOfDay(for: transaction.date)
 		}
 		return groups
 			.map { (date: $0.key, items: $0.value) }
 			.sorted { $0.date > $1.date }
+	}
+	
+	private var timeZone: TimeZone {
+		AppPreferences.effectiveTimeZone(
+			usesAutomaticTimeZone: usesAutomaticTimeZone,
+			selectedTimeZoneIdentifier: selectedTimeZoneIdentifier
+		)
+	}
+	
+	private var calendar: Calendar {
+		var calendar = Calendar.autoupdatingCurrent
+		calendar.timeZone = timeZone
+		return calendar
 	}
 	
 	var body: some View {
@@ -58,7 +74,8 @@ struct TransactionsView: View {
 							ForEach(group.items) { transaction in
 								TransactionRow(
 									transaction: transaction,
-									isExpanded: binding(for: transaction)
+									isExpanded: binding(for: transaction),
+									timeZone: timeZone
 								)
 							}
 							.onDelete { offsets in
@@ -94,6 +111,10 @@ struct TransactionsView: View {
 			} message: {
 				Text(saveErrorMessage ?? "Something went wrong.")
 			}
+		.environment(\.timeZone, timeZone)
+		.onAppear {
+			AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()
+		}
 	}
 
 	@ToolbarContentBuilder
@@ -132,6 +153,16 @@ struct TransactionsView: View {
 			let transaction = items[index]
 			expandedTransactionIDs.remove(transaction.id)
 			account.balance -= transaction.amount
+			
+			if let transferGroupID = transaction.transferGroupID {
+				if let counterpart = allTransactions.first(where: {
+					$0.transferGroupID == transferGroupID && $0.id != transaction.id
+				}) {
+					counterpart.account?.balance -= counterpart.amount
+					modelContext.delete(counterpart)
+				}
+			}
+			
 			modelContext.delete(transaction)
 		}
 		

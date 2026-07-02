@@ -8,6 +8,12 @@ import SwiftUI
 
 struct AccountRow: View {
 	let account: Account
+	let onTransferFrom: (() -> Void)?
+	
+	init(account: Account, onTransferFrom: (() -> Void)? = nil) {
+		self.account = account
+		self.onTransferFrom = onTransferFrom
+	}
 	
 	var body: some View {
 		HStack(spacing: 12) {
@@ -36,6 +42,21 @@ struct AccountRow: View {
 				.font(.body.weight(.semibold))
 				.foregroundStyle(account.balance >= 0 ? Color.primary : Color.red)
 				.monospacedDigit()
+			
+			if let onTransferFrom {
+				Menu {
+					Button {
+						onTransferFrom()
+					} label: {
+						Label("Transfer from this account", systemImage: "arrow.left.arrow.right")
+					}
+				} label: {
+					Image(systemName: "ellipsis.circle")
+						.font(.title3)
+						.foregroundStyle(.secondary)
+				}
+				.buttonStyle(.borderless)
+			}
 		}
 		.padding(.vertical, 6)
 		.opacity(account.isArchived ? 0.5 : 1)

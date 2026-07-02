@@ -12,17 +12,20 @@ struct ContentView: View {
 	@Binding var selectedCategory: Category
 	@Binding var selectedAccount: Account?
 	let onAddAccount: (() -> Void)?
+	let onTransferFromAccount: ((Account) -> Void)?
 	@Query var accounts: [Account]
 	@State private var searchText = ""
 	
 	init(
 		selectedCategory: Binding<Category>,
 		selectedAccount: Binding<Account?>,
-		onAddAccount: (() -> Void)? = nil
+		onAddAccount: (() -> Void)? = nil,
+		onTransferFromAccount: ((Account) -> Void)? = nil
 	) {
 		self._selectedCategory = selectedCategory
 		self._selectedAccount = selectedAccount
 		self.onAddAccount = onAddAccount
+		self.onTransferFromAccount = onTransferFromAccount
 		
 		let targetCategoryRawValue = selectedCategory.wrappedValue.rawValue
 		
@@ -71,7 +74,9 @@ struct ContentView: View {
 						List(selection: $selectedAccount) {
 							ForEach(filteredAccounts) { account in
 								NavigationLink(value: account) {
-									AccountRow(account: account)
+									AccountRow(account: account) {
+										onTransferFromAccount?(account)
+									}
 								}
 								.tag(account)
 							}

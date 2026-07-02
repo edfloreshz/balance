@@ -3,15 +3,66 @@ import SwiftUI
 struct TransactionRow: View {
 	let transaction: Transaction
 	@Binding var isExpanded: Bool
+	let timeZone: TimeZone
 	
-	private var isPositive: Bool {
-		transaction.amount >= 0
+	private var iconName: String {
+		switch transaction.type {
+		case .expense:
+			return "arrow.up.right"
+		case .income:
+			return "arrow.down.left"
+		case .transferOut:
+			return "arrow.right.arrow.left.circle.fill"
+		case .transferIn:
+			return "arrow.left.arrow.right.circle.fill"
+		}
+	}
+	
+	private var typeName: String {
+		switch transaction.type {
+		case .expense:
+			return "Expense"
+		case .income:
+			return "Income"
+		case .transferOut:
+			return "Transfer Out"
+		case .transferIn:
+			return "Transfer In"
+		}
+	}
+	
+	private var accentColor: Color {
+		switch transaction.type {
+		case .expense:
+			return .red
+		case .income:
+			return .green
+		case .transferOut:
+			return .blue
+		case .transferIn:
+			return .mint
+		}
+	}
+	
+	private var amountColor: Color {
+		switch transaction.type {
+		case .expense:
+			return .primary
+		case .income:
+			return .green
+		case .transferOut:
+			return .blue
+		case .transferIn:
+			return .mint
+		}
 	}
 	
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
 			Button {
-				isExpanded.toggle()
+				withAnimation(.easeInOut(duration: 0.2)) {
+					isExpanded.toggle()
+				}
 			} label: {
 				HStack(spacing: 12) {
 					Image(systemName: "chevron.right")
@@ -21,12 +72,12 @@ struct TransactionRow: View {
 						.frame(width: 12, height: 12)
 					
 					Circle()
-						.fill((isPositive ? Color.green : Color.red).opacity(0.15))
+						.fill(accentColor.opacity(0.16))
 						.frame(width: 36, height: 36)
 						.overlay {
-							Image(systemName: isPositive ? "arrow.down.left" : "arrow.up.right")
+							Image(systemName: iconName)
 								.font(.caption.weight(.bold))
-								.foregroundStyle(isPositive ? .green : .red)
+								.foregroundStyle(accentColor)
 						}
 					
 					VStack(alignment: .leading, spacing: 2) {
@@ -42,7 +93,7 @@ struct TransactionRow: View {
 					
 					Text(transaction.amount, format: .currency(code: transaction.account?.currency ?? "USD"))
 						.font(.body.weight(.semibold))
-						.foregroundStyle(isPositive ? .green : .primary)
+						.foregroundStyle(amountColor)
 				}
 				.padding(.vertical, 8)
 				.contentShape(Rectangle())
@@ -51,14 +102,15 @@ struct TransactionRow: View {
 			
 			if isExpanded {
 				VStack(alignment: .leading, spacing: 12) {
-					detailRow("Type", value: isPositive ? "Income" : "Expense")
+					detailRow("Type", value: typeName)
 					detailRow(
 						"Date",
-						value: transaction.date.formatted(
-							.dateTime.weekday(.wide).month().day().year().hour().minute()
-						)
+						value: formattedDetailDate(transaction.date)
 					)
 					detailRow("Account", value: transaction.account?.name ?? "Unassigned")
+					if transaction.type == .transferOut || transaction.type == .transferIn {
+						detailRow("Counterparty", value: transaction.relatedAccount?.name ?? "Unknown")
+					}
 					detailRow("Reference", value: transaction.id.uuidString)
 				}
 				.padding(.top, 8)
@@ -83,6 +135,14 @@ struct TransactionRow: View {
 			Spacer(minLength: 0)
 		}
 	}
+	
+	private func formattedDetailDate(_ date: Date) -> String {
+		let formatter = DateFormatter()
+		formatter.timeZone = timeZone
+		formatter.dateStyle = .full
+		formatter.timeStyle = .short
+		return formatter.string(from: date)
+	}
 }
 
 #Preview {
@@ -96,7 +156,8 @@ struct TransactionRow: View {
 				date: .now,
 				account: Account(name: "Chase Checking", icon: "🏦", category: .checking, balance: 1250.42)
 			),
-			isExpanded: $isExpanded
+			isExpanded: $isExpanded,
+			timeZone: .autoupdatingCurrent
 		)
 	}
 	.listStyle(.plain)

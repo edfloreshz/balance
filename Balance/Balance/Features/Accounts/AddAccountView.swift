@@ -4,6 +4,7 @@ import SwiftUI
 struct AddAccountView: View {
 	@Environment(\.dismiss) private var dismiss
 	@Environment(\.modelContext) private var modelContext
+	@AppStorage(AppPreferences.globalCurrencyCodeKey) private var globalCurrencyCode: String = AppPreferences.defaultGlobalCurrencyCode
 	
 	let onSave: (Account) -> Void
 	
@@ -11,7 +12,7 @@ struct AddAccountView: View {
 	@State private var icon = ""
 	@State private var category: Category
 	@State private var openingBalanceText = ""
-	@State private var currency = "USD"
+	@State private var currency = ""
 	@State private var isArchived = false
 	@State private var saveErrorMessage: String?
 	
@@ -38,7 +39,7 @@ struct AddAccountView: View {
 	
 	private var normalizedCurrency: String {
 		let value = currency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-		return value.isEmpty ? "USD" : value
+		return value.isEmpty ? globalCurrencyCode : value
 	}
 	
 	private var canSave: Bool {
@@ -87,11 +88,7 @@ struct AddAccountView: View {
 				}
 				
 				EditorFieldRow("Currency") {
-					TextField("USD", text: $currency)
-#if os(iOS)
-						.textInputAutocapitalization(.characters)
-#endif
-						.textFieldStyle(.roundedBorder)
+					CurrencyPickerField(currencyCode: $currency)
 				}
 			}
 			
@@ -120,6 +117,12 @@ struct AddAccountView: View {
 			Button("OK", role: .cancel) {}
 		} message: {
 			Text(saveErrorMessage ?? "Something went wrong.")
+		}
+		.onAppear {
+			AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()
+			if currency.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+				currency = globalCurrencyCode
+			}
 		}
 	}
 	
