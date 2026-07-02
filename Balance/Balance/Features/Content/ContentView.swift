@@ -13,6 +13,7 @@ struct ContentView: View {
 	@Binding var selectedAccount: Account?
 	let onAddAccount: (() -> Void)?
 	@Query var accounts: [Account]
+	@State private var searchText = ""
 	
 	init(
 		selectedCategory: Binding<Category>,
@@ -31,32 +32,91 @@ struct ContentView: View {
 		
 		_accounts = Query(filter: predicate, sort: \.name)
 	}
+
+	private var filteredAccounts: [Account] {
+		guard !searchText.isEmpty else { return accounts }
+		return accounts.filter { account in
+			account.name.localizedCaseInsensitiveContains(searchText)
+			|| account.currency.localizedCaseInsensitiveContains(searchText)
+		}
+	}
 	
     var body: some View {
-		if accounts.isEmpty {
-			VStack(spacing: 16) {
-				ContentUnavailableView(
-					"Accounts",
-					systemImage: "dollarsign.circle",
-					description: Text("Accounts will appear here")
-				)
-				
-				if let onAddAccount {
-					Button("Add Account", action: onAddAccount)
-						.buttonStyle(.borderedProminent)
-				}
-			}
-		} else {
-			List(selection: $selectedAccount) {
-				ForEach(accounts) { account in
-					NavigationLink(value: account) {
-						AccountRow(account: account)
+		Group {
+			if accounts.isEmpty {
+				VStack(spacing: 16) {
+					ContentUnavailableView(
+						"Accounts",
+						systemImage: "dollarsign.circle",
+						description: Text("Accounts will appear here")
+					)
+					
+					if let onAddAccount {
+						Button("Add Account", action: onAddAccount)
+							.buttonStyle(.borderedProminent)
 					}
-					.tag(account)
 				}
+			} else {
+				VStack(spacing: 0) {
+					searchField
+
+					if filteredAccounts.isEmpty {
+						VStack {
+							Spacer()
+							ContentUnavailableView.search(text: searchText)
+							Spacer()
+						}
+						.frame(maxWidth: .infinity, maxHeight: .infinity)
+					} else {
+						List(selection: $selectedAccount) {
+							ForEach(filteredAccounts) { account in
+								NavigationLink(value: account) {
+									AccountRow(account: account)
+								}
+								.tag(account)
+							}
+						}
+					}
+				}
+				.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+			}
+		}
+		.onChange(of: searchText) { _, _ in
+			guard let selectedAccount else { return }
+			if !filteredAccounts.contains(where: { $0.id == selectedAccount.id }) {
+				self.selectedAccount = nil
 			}
 		}
     }
+
+	private var searchField: some View {
+		HStack(spacing: 10) {
+			Image(systemName: "magnifyingglass")
+				.foregroundStyle(.secondary)
+
+			TextField("Search accounts", text: $searchText)
+				.textFieldStyle(.plain)
+
+			if !searchText.isEmpty {
+				Button {
+					searchText = ""
+				} label: {
+					Image(systemName: "xmark.circle.fill")
+						.foregroundStyle(.tertiary)
+				}
+				.buttonStyle(.plain)
+			}
+		}
+		.padding(.horizontal, 12)
+		.padding(.vertical, 10)
+		.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+		.overlay {
+			RoundedRectangle(cornerRadius: 12, style: .continuous)
+				.strokeBorder(.quaternary, lineWidth: 1)
+		}
+		.padding(.horizontal, 16)
+		.padding(.vertical, 12)
+	}
 }
 
 #Preview {

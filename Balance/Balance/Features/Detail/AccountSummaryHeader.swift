@@ -4,13 +4,16 @@ struct AccountSummaryHeader: View {
 	let account: Account
 	
 	var body: some View {
-		VStack(spacing: 4) {
+		VStack(spacing: 6) {
 			HStack(spacing: 6) {
 				Text(account.category.icon)
 				Text(account.category.name)
 					.font(.caption.weight(.medium))
 					.foregroundStyle(.secondary)
 			}
+			
+			Text(account.name)
+				.font(.title3.weight(.semibold))
 			
 			Text(account.balance, format: .currency(code: account.currency))
 				.font(.system(size: 34, weight: .bold, design: .rounded))

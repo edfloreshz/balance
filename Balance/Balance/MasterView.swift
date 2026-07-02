@@ -23,10 +23,9 @@ struct MasterView: View {
 			ContentView(
 				selectedCategory: $selectedCategory,
 				selectedAccount: $selectedAccount,
-				onAddAccount: {
-					showingAddAccount = true
-				}
-			)
+			) {
+				showingAddAccount = true
+			}
 		} detail: {
 			DetailView(selectedAccount: $selectedAccount)
 		}

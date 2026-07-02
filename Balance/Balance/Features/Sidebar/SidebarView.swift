@@ -9,9 +9,19 @@ import SwiftUI
 
 struct SidebarView: View {
 	@Binding var selectedCategory: Category
+	
+	private var sidebarSelection: Binding<Category?> {
+		Binding(
+			get: { selectedCategory },
+			set: { newValue in
+				guard let newValue else { return }
+				selectedCategory = newValue
+			}
+		)
+	}
 
 	var body: some View {
-		List(selection: $selectedCategory) {
+		List(selection: sidebarSelection) {
 			ForEach(Category.allCases) { category in
 				NavigationLink(value: category) {
 					CategoryRow(category: category)
@@ -19,7 +29,7 @@ struct SidebarView: View {
 				.tag(category)
 			}
 		}
-    }
+	}
 }
 
 #Preview {

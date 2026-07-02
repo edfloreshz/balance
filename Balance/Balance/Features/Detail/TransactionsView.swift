@@ -104,13 +104,13 @@ struct TransactionsView: View {
 	private var emptyState: some View {
 		VStack(spacing: 12) {
 			Spacer()
-			Image(systemName: "tray")
-				.font(.system(size: 40))
-				.foregroundStyle(.tertiary)
-			Text(searchText.isEmpty ? "No transactions yet" : "No matching transactions")
-				.font(.headline)
-				.foregroundStyle(.secondary)
 			if searchText.isEmpty {
+				Image(systemName: "tray")
+					.font(.system(size: 40))
+					.foregroundStyle(.tertiary)
+				Text("No transactions yet")
+					.font(.headline)
+					.foregroundStyle(.secondary)
 				Text("Tap + to add your first transaction")
 					.font(.subheadline)
 					.foregroundStyle(.tertiary)
@@ -119,6 +119,8 @@ struct TransactionsView: View {
 					showingAddTransaction = true
 				}
 				.buttonStyle(.borderedProminent)
+			} else {
+				ContentUnavailableView.search(text: searchText)
 			}
 			Spacer()
 		}
