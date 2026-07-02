@@ -52,11 +52,11 @@ struct MasterView: View {
 						.toolbar(content: sidebarToolbarContent)
 				} content: {
 					ContentView(viewModel: viewModel)
-					.toolbar(content: contentToolbarContent)
-					.navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 520)
+						.toolbar(content: contentToolbarContent)
+						.navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 520)
 				} detail: {
 					DetailView(viewModel: viewModel)
-					.toolbar(content: detailToolbarContent)
+						.toolbar(content: detailToolbarContent)
 				}
 				.searchable(text: $viewModel.activeSearchText, placement: .toolbar, prompt: viewModel.searchPrompt)
 			} else {
@@ -149,7 +149,7 @@ struct MasterView: View {
 	
 	@ToolbarContentBuilder
 	private func contentToolbarContent() -> some ToolbarContent {
-		
+#if os(macOS)
 		ToolbarItem(placement: .automatic) {
 			Button {
 				viewModel.showingEditAccount = true
@@ -178,6 +178,7 @@ struct MasterView: View {
 			.help("Transfer from this account")
 			.disabled(viewModel.selectedAccount == nil)
 		}
+#endif
 		ToolbarItem(placement: .primaryAction) {
 			Button {
 				viewModel.showingAddAccount = true

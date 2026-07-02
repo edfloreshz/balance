@@ -25,7 +25,10 @@ struct SettingsView: View {
 	var body: some View {
 		EditorSheet(
 			title: "Settings",
-			subtitle: "Configure transfer limits and timezone behavior."
+			subtitle: "Configure transfer limits and timezone behavior.",
+			confirmLabel: "Done",
+			onCancel: { dismiss() },
+			onConfirm: { dismiss() }
 		) {
 			EditorSection("Transfers") {
 				EditorFieldRow("Global Currency") {
@@ -95,11 +98,6 @@ struct SettingsView: View {
 					.font(.caption)
 					.foregroundStyle(.secondary)
 			}
-		} actions: {
-			Button("Done") {
-				dismiss()
-			}
-			.keyboardShortcut(.defaultAction)
 		}
 		.onAppear {
 			AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()

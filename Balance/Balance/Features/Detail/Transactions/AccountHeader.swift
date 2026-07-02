@@ -1,3 +1,10 @@
+//
+//  AccountHeader.swift
+//  Balance
+//
+//  Created by Eduardo Flores on 01/07/26.
+//
+
 import SwiftUI
 
 struct AccountHeader: View {

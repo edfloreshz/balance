@@ -1,3 +1,10 @@
+//
+//  TransactionEditorView.swift
+//  Balance
+//
+//  Created by Eduardo Flores on 01/07/26.
+//
+
 import SwiftData
 import SwiftUI
 
@@ -183,7 +190,10 @@ struct TransactionEditorView: View {
 	var body: some View {
 		EditorSheet(
 			title: editorTitle,
-			subtitle: editorSubtitle
+			subtitle: editorSubtitle,
+			confirmLabel: "Save",
+			onCancel: { dismiss() },
+			onConfirm: { save() }
 		) {
 			if !isEditing, let currentAccount {
 				EditorSection("Account") {
@@ -250,7 +260,9 @@ struct TransactionEditorView: View {
 #if os(iOS)
 							.keyboardType(.decimalPad)
 #endif
+#if os(macOS)
 							.textFieldStyle(.roundedBorder)
+#endif
 							.onChange(of: amountText) { _, newValue in
 								let sanitized = MoneyInputFormatter.sanitize(newValue)
 								if sanitized != newValue {
@@ -271,7 +283,9 @@ struct TransactionEditorView: View {
 				
 				EditorFieldRow("Note") {
 					TextField("Description", text: $note)
+#if os(macOS)
 						.textFieldStyle(.roundedBorder)
+#endif
 				}
 				
 				EditorFieldRow(isRecurringTemplateEditing ? "Start Date" : "Date") {
@@ -423,16 +437,6 @@ struct TransactionEditorView: View {
 					}
 				}
 			}
-		} actions: {
-			Button("Cancel") {
-				dismiss()
-			}
-			
-			Button(isEditing ? "Save" : "Save") {
-				save()
-			}
-			.keyboardShortcut(.defaultAction)
-			.disabled(!canSave)
 		}
 		.alert(
 			"Couldn't Save Transaction",

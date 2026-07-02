@@ -1,3 +1,11 @@
+//
+//  AccountEditorView.swift
+//  Balance
+//
+//  Created by Eduardo Flores on 01/07/26.
+//
+
+import EmojiPicker
 import SwiftData
 import SwiftUI
 
@@ -10,12 +18,13 @@ struct AccountEditorView: View {
 	let onSave: (Account) -> Void
 	
 	@State private var name = ""
-	@State private var icon = ""
+	@State private var icon = "🔎"
 	@State private var category: Category
 	@State private var openingBalanceText = ""
 	@State private var currency = ""
 	@State private var isArchived = false
 	@State private var saveErrorMessage: String?
+	@State private var showEmojiPicker: Bool = false
 	
 	init(selectedCategory: Category, onSave: @escaping (Account) -> Void) {
 		self.accountToEdit = nil
@@ -68,21 +77,30 @@ struct AccountEditorView: View {
 			title: isEditing ? "Edit Account" : "New Account",
 			subtitle: isEditing
 				? "Update account details, balance, and currency."
-				: "Create an account with a category, opening balance, and currency."
+				: "Create an account with a category, opening balance, and currency.",
+			confirmLabel: isEditing ? "Update" : "Save",
+			isConfirmDisabled: !canSave,
+			onCancel: { dismiss() },
+			onConfirm: { save() }
 		) {
 			EditorSection("Account Details") {
 				EditorFieldRow("Name") {
 					TextField("Checking Account", text: $name)
+#if os(macOS)
 						.textFieldStyle(.roundedBorder)
+#endif
 				}
 				
 				EditorFieldRow("Icon") {
 					HStack(spacing: 12) {
-						TextField(category.icon, text: $icon)
-							.textFieldStyle(.roundedBorder)
-						Text(trimmedIcon.isEmpty ? category.icon : trimmedIcon)
-							.font(.title2)
-							.frame(width: 32)
+						Button(role: .confirm, action: {
+							showEmojiPicker.toggle()
+						}) {
+							Text(icon)
+								.padding(2)
+						}
+						.buttonStyle(.glass)
+						.buttonBorderShape(.circle)
 					}
 				}
 				
@@ -93,7 +111,6 @@ struct AccountEditorView: View {
 						}
 					}
 					.labelsHidden()
-					.frame(maxWidth: .infinity, alignment: .leading)
 				}
 			}
 			
@@ -103,18 +120,20 @@ struct AccountEditorView: View {
 #if os(iOS)
 						.keyboardType(.decimalPad)
 #endif
+#if os(macOS)
 						.textFieldStyle(.roundedBorder)
-						.onChange(of: openingBalanceText) { _, newValue in
-							let sanitized = MoneyInputFormatter.sanitize(newValue, allowsNegative: true)
-							if sanitized != newValue {
-								openingBalanceText = sanitized
-							}
+#endif
+					.onChange(of: openingBalanceText) { _, newValue in
+						let sanitized = MoneyInputFormatter.sanitize(newValue, allowsNegative: true)
+						if sanitized != newValue {
+							openingBalanceText = sanitized
 						}
-						.onSubmit {
-							if let openingBalance {
-								openingBalanceText = MoneyInputFormatter.format(openingBalance)
-							}
+					}
+					.onSubmit {
+						if let openingBalance {
+							openingBalanceText = MoneyInputFormatter.format(openingBalance)
 						}
+					}
 				}
 				
 				EditorFieldRow("Currency") {
@@ -126,16 +145,6 @@ struct AccountEditorView: View {
 				Toggle("Archive account", isOn: $isArchived)
 					.toggleStyle(.switch)
 			}
-		} actions: {
-			Button("Cancel") {
-				dismiss()
-			}
-			
-			Button(isEditing ? "Update" : "Save") {
-				save()
-			}
-			.keyboardShortcut(.defaultAction)
-			.disabled(!canSave)
 		}
 		.alert(
 			"Couldn't Save Account",
@@ -147,6 +156,11 @@ struct AccountEditorView: View {
 			Button("OK", role: .cancel) {}
 		} message: {
 			Text(saveErrorMessage ?? "Something went wrong.")
+		}
+		.sheet(isPresented: $showEmojiPicker) {
+			EmojiPickerView(
+				selectedEmoji: $icon
+			)
 		}
 		.onAppear {
 			AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()

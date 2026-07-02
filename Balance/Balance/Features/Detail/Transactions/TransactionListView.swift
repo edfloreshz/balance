@@ -145,6 +145,7 @@ struct TransactionListView: View {
 		.onChange(of: filteredTransactions.map(\.id)) { _, visibleIDs in
 			viewModel.retainSelectedTransactionIDs(visibleIDs: visibleIDs)
 		}
+#if os(macOS)
 		.toolbar {
 			ToolbarSpacer(.fixed)
 			ToolbarItemGroup(placement: .confirmationAction) {
@@ -165,6 +166,7 @@ struct TransactionListView: View {
 				.disabled(viewModel.selectedTransactionIDs.isEmpty)
 			}
 		}
+#endif
 		.confirmationDialog(
 			"Delete Transactions?",
 			isPresented: $viewModel.showingDeleteTransactionsConfirmation,
@@ -196,12 +198,13 @@ struct TransactionListView: View {
 					Text("Tap + to add your first transaction")
 						.font(.subheadline)
 						.foregroundStyle(.tertiary)
-					
+#if os(macOS)
 					Button("Add Transaction") {
 						viewModel.startsAsRecurring = false
 						viewModel.showingAddTransaction = true
 					}
-					.buttonStyle(.borderedProminent)
+					.buttonStyle(.glassProminent)
+#endif
 				} else {
 					Image(systemName: "repeat")
 						.font(.system(size: 40))
@@ -212,12 +215,13 @@ struct TransactionListView: View {
 					Text("Recurring transactions for this account will appear here.")
 						.font(.subheadline)
 						.foregroundStyle(.tertiary)
-
+#if os(macOS)
 					Button("Add Recurrent Transaction") {
 						viewModel.startsAsRecurring = true
 						viewModel.showingAddTransaction = true
 					}
-					.buttonStyle(.borderedProminent)
+					.buttonStyle(.glassProminent)
+#endif	
 				}
 			} else {
 				ContentUnavailableView.search(text: viewModel.searchText)

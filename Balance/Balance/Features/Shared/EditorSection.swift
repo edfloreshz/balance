@@ -10,6 +10,13 @@ struct EditorSection<Content: View>: View {
 	}
 
 	var body: some View {
+		#if os(iOS)
+		Section {
+			content
+		} header: {
+			Text(title)
+		}
+		#else
 		VStack(alignment: .leading, spacing: 14) {
 			Text(title)
 				.font(.headline)
@@ -25,7 +32,15 @@ struct EditorSection<Content: View>: View {
 			RoundedRectangle(cornerRadius: 14, style: .continuous)
 				.strokeBorder(.quaternary, lineWidth: 1)
 		}
+		#endif
 	}
+}
+
+#Preview {
+	EditorSection<Text>("Account Details") {
+		Text("Sample content")
+	}
+	.padding()
 }
 
 #Preview {

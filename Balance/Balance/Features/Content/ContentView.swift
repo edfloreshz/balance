@@ -44,11 +44,12 @@ struct ContentView: View {
 						systemImage: "dollarsign.circle",
 						description: Text("Accounts will appear here")
 					)
-					
+#if os(macOS)
 					Button("Add Account") {
 						viewModel.showingAddAccount = true
 					}
-					.buttonStyle(.borderedProminent)
+					.buttonStyle(.glassProminent)
+#endif
 				}
 			} else {
 				VStack(spacing: 0) {
@@ -78,6 +79,15 @@ struct ContentView: View {
 									} label: {
 										Label("Delete", systemImage: "trash")
 									}
+								}
+								.swipeActions(edge: .leading, allowsFullSwipe: true) {
+									Button {
+										viewModel.selectedAccount = account
+										viewModel.showAddTransaction(initialKind: .transferOut)
+									} label: {
+										Label("Transfer", systemImage: "arrow.left.arrow.right")
+									}
+									.help("Transfer from this account")
 								}
 								.tag(account)
 							}
