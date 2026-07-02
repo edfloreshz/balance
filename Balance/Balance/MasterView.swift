@@ -77,6 +77,7 @@ struct MasterView: View {
 	@Query(sort: \Transaction.date, order: .reverse) private var recurringTransactions: [Transaction]
 	
 	@State var selectedCategory: Category = .savings
+	@State private var sidebarSelection: SidebarSelection = .dashboard
 	@State var selectedAccount: Account?
 	@State private var showingAddAccount = false
 	@State private var showingAddTransaction = false
@@ -92,28 +93,42 @@ struct MasterView: View {
 	}
 
 	var body: some View {
-		NavigationSplitView {
-			SidebarView(selectedCategory: $selectedCategory)
-		} content: {
-			ContentView(
-				selectedCategory: $selectedCategory,
-				selectedAccount: $selectedAccount,
-			) {
-				showingAddAccount = true
-			} onTransferFromAccount: { account in
-				selectedCategory = account.category
-				selectedAccount = account
-				addTransactionInitialKind = .transferOut
-				showingAddTransaction = true
+		Group {
+			if case .category = sidebarSelection {
+				NavigationSplitView {
+					SidebarView(selection: $sidebarSelection)
+						.navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 320)
+				} content: {
+					ContentView(
+						selectedCategory: $selectedCategory,
+						selectedAccount: $selectedAccount,
+					) {
+						showingAddAccount = true
+					} onTransferFromAccount: { account in
+						selectedCategory = account.category
+						sidebarSelection = .category(account.category)
+						selectedAccount = account
+						addTransactionInitialKind = .transferOut
+						showingAddTransaction = true
+					}
+					.navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 520)
+				} detail: {
+					DetailView(selectedAccount: $selectedAccount)
+				}
+			} else {
+				NavigationSplitView {
+					SidebarView(selection: $sidebarSelection)
+						.navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 320)
+				} detail: {
+					DashboardView()
+				}
 			}
-		} detail: {
-			DetailView(selectedAccount: $selectedAccount)
 		}
-		.navigationSplitViewStyle(.prominentDetail)
 		.toolbar(content: toolbarContent)
 		.sheet(isPresented: $showingAddAccount) {
 			AddAccountView(selectedCategory: selectedCategory) { account in
 				selectedCategory = account.category
+				sidebarSelection = .category(account.category)
 				selectedAccount = account
 			}
 		}
@@ -128,6 +143,19 @@ struct MasterView: View {
 		.onAppear {
 			AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()
 			processRecurringTransactionsIfNeeded()
+		}
+		.onChange(of: selectedCategory) { _, newCategory in
+			if case .category = sidebarSelection {
+				sidebarSelection = .category(newCategory)
+			}
+		}
+		.onChange(of: sidebarSelection) { _, newSelection in
+			switch newSelection {
+			case .dashboard:
+				selectedAccount = nil
+			case .category(let category):
+				selectedCategory = category
+			}
 		}
 		.onChange(of: scenePhase) { _, newPhase in
 			if newPhase == .active {

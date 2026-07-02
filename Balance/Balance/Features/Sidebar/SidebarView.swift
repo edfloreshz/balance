@@ -7,33 +7,37 @@
 
 import SwiftUI
 
+enum SidebarSelection: Hashable {
+	case dashboard
+	case category(Category)
+}
+
 struct SidebarView: View {
-	@Binding var selectedCategory: Category
-	
-	private var sidebarSelection: Binding<Category?> {
-		Binding(
-			get: { selectedCategory },
-			set: { newValue in
-				guard let newValue else { return }
-				selectedCategory = newValue
-			}
-		)
-	}
+	@Binding var selection: SidebarSelection
 
 	var body: some View {
-		List(selection: sidebarSelection) {
-			ForEach(Category.allCases) { category in
-				NavigationLink(value: category) {
-					CategoryRow(category: category)
+		List(selection: $selection) {
+			Section {
+				NavigationLink(value: SidebarSelection.dashboard) {
+					Label("Dashboard", systemImage: "chart.xyaxis.line")
 				}
-				.tag(category)
+				.tag(SidebarSelection.dashboard)
+			}
+			
+			Section("Accounts") {
+				ForEach(Category.allCases) { category in
+					NavigationLink(value: SidebarSelection.category(category)) {
+						CategoryRow(category: category)
+					}
+					.tag(SidebarSelection.category(category))
+				}
 			}
 		}
 	}
 }
 
 #Preview {
-	@Previewable @State var selectedCategory: Category = .savings
+	@Previewable @State var selection: SidebarSelection = .dashboard
 
-	SidebarView(selectedCategory: $selectedCategory)
+	SidebarView(selection: $selection)
 }
