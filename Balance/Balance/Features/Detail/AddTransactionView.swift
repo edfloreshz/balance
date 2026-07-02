@@ -4,6 +4,7 @@ import SwiftUI
 struct AddTransactionView: View {
 	let account: Account
 	let initialKind: TransactionKind
+	private let startsAsRecurring: Bool
 	@Environment(\.modelContext) private var modelContext
 	@Environment(\.dismiss) private var dismiss
 	@Query(sort: \Account.name) private var accounts: [Account]
@@ -17,12 +18,24 @@ struct AddTransactionView: View {
 	@State private var date: Date = .now
 	@State private var selectedKind: TransactionKind
 	@State private var destinationAccountID: UUID?
+	@State private var isRecurring: Bool = false
+	@State private var recurrenceFrequency: RecurrenceFrequency = .monthly
+	@State private var hasRecurrenceStartDate: Bool = false
+	@State private var recurrenceStartDate: Date = .now
+	@State private var hasRecurrenceEndDate: Bool = false
+	@State private var recurrenceEndDate: Date = .now
 	@State private var saveErrorMessage: String?
 	
-	init(account: Account, initialKind: TransactionKind = .expense) {
+	init(
+		account: Account,
+		initialKind: TransactionKind = .expense,
+		startsAsRecurring: Bool = false
+	) {
 		self.account = account
 		self.initialKind = initialKind
+		self.startsAsRecurring = startsAsRecurring
 		_selectedKind = State(initialValue: initialKind)
+		_isRecurring = State(initialValue: startsAsRecurring)
 	}
 	
 	private var amountValue: Double? {
@@ -57,9 +70,21 @@ struct AddTransactionView: View {
 		return availableDestinationAccounts.first(where: { $0.id == destinationAccountID })
 	}
 	
+	private var effectiveRecurrenceStartDate: Date {
+		hasRecurrenceStartDate ? recurrenceStartDate : date
+	}
+	
+	private var recurrenceRangeIsValid: Bool {
+		!isRecurring || !hasRecurrenceEndDate || recurrenceEndDate >= effectiveRecurrenceStartDate
+	}
+	
 	private var transferredAmountForSelectedDay: Double {
 		transactions
-			.filter { $0.type == .transferOut && calendar.isDate($0.date, inSameDayAs: date) }
+			.filter {
+				$0.type == .transferOut
+				&& calendar.isDate($0.date, inSameDayAs: date)
+				&& ($0.recurrenceFrequencyRawValue == nil || $0.recurrenceSeriesID != nil)
+			}
 			.reduce(0) { partialResult, transaction in
 				partialResult + abs(transaction.amount)
 			}
@@ -75,6 +100,8 @@ struct AddTransactionView: View {
 	}
 	
 	private var canSave: Bool {
+		guard recurrenceRangeIsValid else { return false }
+		
 		if isTransfer {
 			return amountValue != nil && selectedDestinationAccount != nil
 		}
@@ -167,6 +194,51 @@ struct AddTransactionView: View {
 				}
 			}
 			
+			EditorSection("Recurrence") {
+				Toggle("Repeat transaction", isOn: $isRecurring)
+				
+				if isRecurring {
+					EditorFieldRow("Frequency") {
+						Picker("Frequency", selection: $recurrenceFrequency) {
+							ForEach(RecurrenceFrequency.allCases) { frequency in
+								Text(frequency.displayName).tag(frequency)
+							}
+						}
+						.labelsHidden()
+					}
+					
+					Toggle("Set start date", isOn: $hasRecurrenceStartDate)
+					if hasRecurrenceStartDate {
+						EditorFieldRow("Start Date") {
+							DatePicker(
+								"Start Date",
+								selection: $recurrenceStartDate,
+								displayedComponents: [.date, .hourAndMinute]
+							)
+							.labelsHidden()
+						}
+					}
+					
+					Toggle("Set end date", isOn: $hasRecurrenceEndDate)
+					if hasRecurrenceEndDate {
+						EditorFieldRow("End Date") {
+							DatePicker(
+								"End Date",
+								selection: $recurrenceEndDate,
+								displayedComponents: [.date, .hourAndMinute]
+							)
+							.labelsHidden()
+						}
+					}
+					
+					if !recurrenceRangeIsValid {
+						Label("End date must be after the recurrence start date.", systemImage: "exclamationmark.triangle.fill")
+							.font(.caption.weight(.medium))
+							.foregroundStyle(.orange)
+					}
+				}
+			}
+			
 			if let amountValue {
 				EditorSection("Preview") {
 					HStack {
@@ -256,10 +328,30 @@ struct AddTransactionView: View {
 			if isTransfer, destinationAccountID == nil {
 				destinationAccountID = availableDestinationAccounts.first?.id
 			}
+			recurrenceStartDate = date
+			recurrenceEndDate = date
 		}
 		.onChange(of: selectedKind) { _, kind in
 			if kind == .transferOut, destinationAccountID == nil {
 				destinationAccountID = availableDestinationAccounts.first?.id
+			}
+		}
+		.onChange(of: date) { _, newDate in
+			if !hasRecurrenceStartDate {
+				recurrenceStartDate = newDate
+			}
+			if !hasRecurrenceEndDate {
+				recurrenceEndDate = newDate
+			}
+		}
+		.onChange(of: hasRecurrenceStartDate) { _, hasStartDate in
+			if !hasStartDate {
+				recurrenceStartDate = date
+			}
+		}
+		.onChange(of: hasRecurrenceEndDate) { _, hasEndDate in
+			if !hasEndDate {
+				recurrenceEndDate = date
 			}
 		}
 	}
@@ -305,6 +397,11 @@ struct AddTransactionView: View {
 			return
 		}
 		
+		guard recurrenceRangeIsValid else {
+			saveErrorMessage = "End date must be after the recurrence start date."
+			return
+		}
+		
 		if isTransfer {
 			guard let destinationAccount = selectedDestinationAccount else {
 				saveErrorMessage = "Select a destination account."
@@ -312,51 +409,95 @@ struct AddTransactionView: View {
 			}
 			
 			let transferAmount = abs(rawAmount)
-			let transferGroupID = UUID()
-			
-			let sourceTransaction = Transaction(
-				amount: -transferAmount,
-				note: note,
-				date: date,
-				type: .transferOut,
-				transferGroupID: transferGroupID,
-				account: account,
-				relatedAccount: destinationAccount
-			)
-			
-			let destinationTransaction = Transaction(
-				amount: transferAmount,
-				note: note,
-				date: date,
-				type: .transferIn,
-				transferGroupID: transferGroupID,
-				account: destinationAccount,
-				relatedAccount: account
-			)
-			
-			modelContext.insert(sourceTransaction)
-			modelContext.insert(destinationTransaction)
-			
-			account.balance -= transferAmount
-			destinationAccount.balance += transferAmount
+			if isRecurring {
+				let recurring = Transaction(
+					amount: transferAmount,
+					note: note,
+					type: .transferOut,
+					frequency: recurrenceFrequency,
+					startDate: effectiveRecurrenceStartDate,
+					endDate: hasRecurrenceEndDate ? recurrenceEndDate : nil,
+					account: account,
+					relatedAccount: destinationAccount
+				)
+				modelContext.insert(recurring)
+				tryProcessRecurringNow(for: recurring)
+				if saveErrorMessage != nil { return }
+			} else {
+				let transferGroupID = UUID()
+				
+				let sourceTransaction = Transaction(
+					amount: -transferAmount,
+					note: note,
+					date: date,
+					type: .transferOut,
+					transferGroupID: transferGroupID,
+					account: account,
+					relatedAccount: destinationAccount
+				)
+				
+				let destinationTransaction = Transaction(
+					amount: transferAmount,
+					note: note,
+					date: date,
+					type: .transferIn,
+					transferGroupID: transferGroupID,
+					account: destinationAccount,
+					relatedAccount: account
+				)
+				
+				modelContext.insert(sourceTransaction)
+				modelContext.insert(destinationTransaction)
+				
+				account.balance -= transferAmount
+				destinationAccount.balance += transferAmount
+			}
 		} else {
 			let amount = selectedKind == .expense ? -abs(rawAmount) : abs(rawAmount)
 			let type: TransactionKind = selectedKind == .expense ? .expense : .income
 			
-			let transaction = Transaction(
-				amount: amount,
-				note: note,
-				date: date,
-				type: type,
-				account: account
-			)
-			modelContext.insert(transaction)
-			account.balance += amount
+			if isRecurring {
+				let recurring = Transaction(
+					amount: abs(rawAmount),
+					note: note,
+					type: type,
+					frequency: recurrenceFrequency,
+					startDate: effectiveRecurrenceStartDate,
+					endDate: hasRecurrenceEndDate ? recurrenceEndDate : nil,
+					account: account
+				)
+				modelContext.insert(recurring)
+				tryProcessRecurringNow(for: recurring)
+				if saveErrorMessage != nil { return }
+			} else {
+				let transaction = Transaction(
+					amount: amount,
+					note: note,
+					date: date,
+					type: type,
+					account: account
+				)
+				modelContext.insert(transaction)
+				account.balance += amount
+			}
 		}
 		
 		do {
 			try modelContext.save()
 			dismiss()
+		} catch {
+			saveErrorMessage = error.localizedDescription
+		}
+	}
+	
+	private func tryProcessRecurringNow(for recurring: Transaction) {
+		do {
+			try RecurringTransactionProcessor.processDueTransactions(
+				context: modelContext,
+				recurringTransactions: [recurring],
+				until: .now,
+				calendar: calendar
+			)
 		} catch {
 			saveErrorMessage = error.localizedDescription
 		}

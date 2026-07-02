@@ -56,6 +56,11 @@ struct TransactionRow: View {
 			return .mint
 		}
 	}
+
+	private var recurrenceStatus: String? {
+		guard transaction.recurrenceFrequency != nil else { return nil }
+		return transaction.isRecurringTemplate ? "Template" : "Occurrence"
+	}
 	
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
@@ -91,7 +96,7 @@ struct TransactionRow: View {
 					
 					Spacer()
 					
-					Text(transaction.amount, format: .currency(code: transaction.account?.currency ?? "USD"))
+					Text(transaction.signedAmount, format: .currency(code: transaction.account?.currency ?? "USD"))
 						.font(.body.weight(.semibold))
 						.foregroundStyle(amountColor)
 				}
@@ -110,6 +115,22 @@ struct TransactionRow: View {
 					detailRow("Account", value: transaction.account?.name ?? "Unassigned")
 					if transaction.type == .transferOut || transaction.type == .transferIn {
 						detailRow("Counterparty", value: transaction.relatedAccount?.name ?? "Unknown")
+					}
+					if let recurrenceFrequency = transaction.recurrenceFrequency {
+						detailRow("Repeat", value: recurrenceFrequency.displayName)
+						if let recurrenceStatus {
+							detailRow("Recurring", value: recurrenceStatus)
+						}
+						detailRow("Start", value: formattedDetailDate(transaction.startDate))
+						if let endDate = transaction.endDate {
+							detailRow("End", value: formattedDetailDate(endDate))
+						}
+						if transaction.isRecurringTemplate {
+							detailRow("Next", value: formattedDetailDate(transaction.nextOccurrenceDate))
+						}
+						if let recurrenceSeriesID = transaction.recurrenceSeriesID {
+							detailRow("Series", value: recurrenceSeriesID.uuidString)
+						}
 					}
 					detailRow("Reference", value: transaction.id.uuidString)
 				}

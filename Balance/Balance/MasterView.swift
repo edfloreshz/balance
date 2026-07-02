@@ -70,12 +70,26 @@ enum AppPreferences {
 }
 
 struct MasterView: View {
+	@Environment(\.modelContext) private var modelContext
+	@Environment(\.scenePhase) private var scenePhase
+	@AppStorage(AppPreferences.usesAutomaticTimeZoneKey) private var usesAutomaticTimeZone: Bool = true
+	@AppStorage(AppPreferences.selectedTimeZoneIdentifierKey) private var selectedTimeZoneIdentifier: String = TimeZone.autoupdatingCurrent.identifier
+	@Query(sort: \Transaction.date, order: .reverse) private var recurringTransactions: [Transaction]
+	
 	@State var selectedCategory: Category = .savings
 	@State var selectedAccount: Account?
 	@State private var showingAddAccount = false
 	@State private var showingAddTransaction = false
 	@State private var showingSettings = false
 	@State private var addTransactionInitialKind: TransactionKind = .expense
+	@State private var recurringSyncErrorMessage: String?
+	
+	private var timeZone: TimeZone {
+		AppPreferences.effectiveTimeZone(
+			usesAutomaticTimeZone: usesAutomaticTimeZone,
+			selectedTimeZoneIdentifier: selectedTimeZoneIdentifier
+		)
+	}
 
 	var body: some View {
 		NavigationSplitView {
@@ -113,6 +127,23 @@ struct MasterView: View {
 		}
 		.onAppear {
 			AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()
+			processRecurringTransactionsIfNeeded()
+		}
+		.onChange(of: scenePhase) { _, newPhase in
+			if newPhase == .active {
+				processRecurringTransactionsIfNeeded()
+			}
+		}
+		.alert(
+			"Couldn't Process Recurring Transactions",
+			isPresented: Binding(
+				get: { recurringSyncErrorMessage != nil },
+				set: { if !$0 { recurringSyncErrorMessage = nil } }
+			)
+		) {
+			Button("OK", role: .cancel) {}
+		} message: {
+			Text(recurringSyncErrorMessage ?? "Something went wrong.")
 		}
 	}
 	
@@ -145,6 +176,23 @@ struct MasterView: View {
 			} label: {
 				Image(systemName: "plus")
 			}
+		}
+	}
+	
+	private func processRecurringTransactionsIfNeeded() {
+		var calendar = Calendar.autoupdatingCurrent
+		calendar.timeZone = timeZone
+		let recurringTemplates = recurringTransactions.filter { $0.isRecurringTemplate }
+		
+		do {
+			try RecurringTransactionProcessor.processDueTransactions(
+				context: modelContext,
+				recurringTransactions: recurringTemplates,
+				until: .now,
+				calendar: calendar
+			)
+		} catch {
+			recurringSyncErrorMessage = error.localizedDescription
 		}
 	}
 }
