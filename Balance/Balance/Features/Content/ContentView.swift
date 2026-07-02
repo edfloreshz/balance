@@ -11,21 +11,23 @@ import SwiftData
 struct ContentView: View {
 	@Binding var selectedCategory: Category
 	@Binding var selectedAccount: Account?
+	@Binding var searchText: String
+	@Environment(\.modelContext) private var modelContext
 	let onAddAccount: (() -> Void)?
-	let onTransferFromAccount: ((Account) -> Void)?
 	@Query var accounts: [Account]
-	@State private var searchText = ""
+	@State private var editingAccount: Account?
+	@State private var saveErrorMessage: String?
 	
 	init(
 		selectedCategory: Binding<Category>,
 		selectedAccount: Binding<Account?>,
-		onAddAccount: (() -> Void)? = nil,
-		onTransferFromAccount: ((Account) -> Void)? = nil
+		searchText: Binding<String>,
+		onAddAccount: (() -> Void)? = nil
 	) {
 		self._selectedCategory = selectedCategory
 		self._selectedAccount = selectedAccount
+		self._searchText = searchText
 		self.onAddAccount = onAddAccount
-		self.onTransferFromAccount = onTransferFromAccount
 		
 		let targetCategoryRawValue = selectedCategory.wrappedValue.rawValue
 		
@@ -61,8 +63,6 @@ struct ContentView: View {
 				}
 			} else {
 				VStack(spacing: 0) {
-					searchField
-
 					if filteredAccounts.isEmpty {
 						VStack {
 							Spacer()
@@ -74,8 +74,20 @@ struct ContentView: View {
 						List(selection: $selectedAccount) {
 							ForEach(filteredAccounts) { account in
 								NavigationLink(value: account) {
-									AccountRow(account: account) {
-										onTransferFromAccount?(account)
+									AccountRow(account: account)
+								}
+								.swipeActions(edge: .trailing, allowsFullSwipe: false) {
+									Button {
+										editingAccount = account
+									} label: {
+										Label("Edit", systemImage: "pencil")
+									}
+									.tint(.blue)
+									
+									Button(role: .destructive) {
+										delete(account)
+									} label: {
+										Label("Delete", systemImage: "trash")
 									}
 								}
 								.tag(account)
@@ -92,42 +104,43 @@ struct ContentView: View {
 				self.selectedAccount = nil
 			}
 		}
+		.sheet(item: $editingAccount) { account in
+			AddAccountView(account: account)
+		}
+		.alert(
+			"Couldn't Update Account",
+			isPresented: Binding(
+				get: { saveErrorMessage != nil },
+				set: { if !$0 { saveErrorMessage = nil } }
+			)
+		) {
+			Button("OK", role: .cancel) {}
+		} message: {
+			Text(saveErrorMessage ?? "Something went wrong.")
+		}
     }
 
-	private var searchField: some View {
-		HStack(spacing: 10) {
-			Image(systemName: "magnifyingglass")
-				.foregroundStyle(.secondary)
-
-			TextField("Search accounts", text: $searchText)
-				.textFieldStyle(.plain)
-
-			if !searchText.isEmpty {
-				Button {
-					searchText = ""
-				} label: {
-					Image(systemName: "xmark.circle.fill")
-						.foregroundStyle(.tertiary)
-				}
-				.buttonStyle(.plain)
-			}
+	private func delete(_ account: Account) {
+		if selectedAccount?.id == account.id {
+			selectedAccount = nil
 		}
-		.padding(.horizontal, 12)
-		.padding(.vertical, 10)
-		.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-		.overlay {
-			RoundedRectangle(cornerRadius: 12, style: .continuous)
-				.strokeBorder(.quaternary, lineWidth: 1)
+		
+		modelContext.delete(account)
+		
+		do {
+			try modelContext.save()
+		} catch {
+			saveErrorMessage = error.localizedDescription
 		}
-		.padding(.horizontal, 16)
-		.padding(.vertical, 12)
 	}
+
 }
 
 #Preview {
 	@Previewable @State var selectedCategory: Category = .savings
 	@Previewable @State var selectedAccount: Account? = nil
+	@Previewable @State var searchText: String = ""
 
-	ContentView(selectedCategory: $selectedCategory, selectedAccount: $selectedAccount)
+	ContentView(selectedCategory: $selectedCategory, selectedAccount: $selectedAccount, searchText: $searchText)
 		.modelContainer(PreviewData.shared.modelContainer)
 }

@@ -9,10 +9,16 @@ import SwiftUI
 
 struct DetailView: View {
 	@Binding var selectedAccount: Account?
-
+	@Binding var showingEditAccount: Bool
+	@Binding var searchText: String
+	
     var body: some View {
 		if let selectedAccount {
-			TransactionsView(account: selectedAccount)
+			TransactionsView(
+				account: selectedAccount,
+				searchText: $searchText,
+				showingEditAccount: $showingEditAccount
+			)
 		} else {
 			ContentUnavailableView(
 				"Details",
@@ -25,6 +31,12 @@ struct DetailView: View {
 
 #Preview {
 	@Previewable @State var selectedAccount: Account? = nil
-	
-	DetailView(selectedAccount: $selectedAccount)
+	@Previewable @State var showingEditAccount: Bool = false
+	@Previewable @State var searchText: String = ""
+
+	DetailView(
+		selectedAccount: $selectedAccount,
+		showingEditAccount: $showingEditAccount,
+		searchText: $searchText
+	)
 }

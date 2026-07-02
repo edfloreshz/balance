@@ -64,46 +64,47 @@ struct TransactionRow: View {
 	
 	var body: some View {
 		VStack(alignment: .leading, spacing: 0) {
-			Button {
-				withAnimation(.easeInOut(duration: 0.2)) {
-					isExpanded.toggle()
-				}
-			} label: {
-				HStack(spacing: 12) {
+			HStack(spacing: 12) {
+				Button {
+					withAnimation(.easeInOut(duration: 0.2)) {
+						isExpanded.toggle()
+					}
+				} label: {
 					Image(systemName: "chevron.right")
 						.font(.caption.weight(.semibold))
 						.foregroundStyle(.secondary)
 						.rotationEffect(.degrees(isExpanded ? 90 : 0))
 						.frame(width: 12, height: 12)
-					
-					Circle()
-						.fill(accentColor.opacity(0.16))
-						.frame(width: 36, height: 36)
-						.overlay {
-							Image(systemName: iconName)
-								.font(.caption.weight(.bold))
-								.foregroundStyle(accentColor)
-						}
-					
-					VStack(alignment: .leading, spacing: 2) {
-						Text(transaction.note.isEmpty ? "Transaction" : transaction.note)
-							.font(.body)
-							.lineLimit(isExpanded ? nil : 1)
-						Text(transaction.date, format: .dateTime.hour().minute())
-							.font(.caption)
-							.foregroundStyle(.secondary)
-					}
-					
-					Spacer()
-					
-					Text(transaction.signedAmount, format: .currency(code: transaction.account?.currency ?? "USD"))
-						.font(.body.weight(.semibold))
-						.foregroundStyle(amountColor)
+						.contentShape(Rectangle())
 				}
-				.padding(.vertical, 8)
-				.contentShape(Rectangle())
+				.buttonStyle(.plain)
+				.accessibilityLabel(isExpanded ? "Collapse transaction details" : "Expand transaction details")
+				
+				Circle()
+					.fill(accentColor.opacity(0.16))
+					.frame(width: 36, height: 36)
+					.overlay {
+						Image(systemName: iconName)
+							.font(.caption.weight(.bold))
+							.foregroundStyle(accentColor)
+					}
+				
+				VStack(alignment: .leading, spacing: 2) {
+					Text(transaction.note.isEmpty ? "Transaction" : transaction.note)
+						.font(.body)
+						.lineLimit(isExpanded ? nil : 1)
+					Text(transaction.date, format: .dateTime.hour().minute())
+						.font(.caption)
+						.foregroundStyle(.secondary)
+				}
+				
+				Spacer()
+				
+				Text(transaction.signedAmount, format: .currency(code: transaction.account?.currency ?? "USD"))
+					.font(.body.weight(.semibold))
+					.foregroundStyle(amountColor)
 			}
-			.buttonStyle(.plain)
+			.padding(.vertical, 8)
 			
 			if isExpanded {
 				VStack(alignment: .leading, spacing: 12) {
@@ -136,6 +137,7 @@ struct TransactionRow: View {
 				}
 				.padding(.top, 8)
 				.padding(.leading, 24)
+				.padding(.bottom, 8)
 			}
 		}
 		.animation(.default, value: isExpanded)

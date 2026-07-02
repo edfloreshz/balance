@@ -79,16 +79,38 @@ struct MasterView: View {
 	@State var selectedCategory: Category = .savings
 	@State private var sidebarSelection: SidebarSelection = .dashboard
 	@State var selectedAccount: Account?
+	@State private var accountSearchText: String = ""
+	@State private var transactionSearchText: String = ""
 	@State private var showingAddAccount = false
 	@State private var showingAddTransaction = false
 	@State private var showingSettings = false
 	@State private var addTransactionInitialKind: TransactionKind = .expense
 	@State private var recurringSyncErrorMessage: String?
+	@State private var accountDeletionErrorMessage: String?
+	@State private var showingDeleteAccountConfirmation = false
+	@State private var showingEditAccount: Bool = false
 	
 	private var timeZone: TimeZone {
 		AppPreferences.effectiveTimeZone(
 			usesAutomaticTimeZone: usesAutomaticTimeZone,
 			selectedTimeZoneIdentifier: selectedTimeZoneIdentifier
+		)
+	}
+
+	private var searchPrompt: String {
+		selectedAccount == nil ? "Search accounts" : "Search transactions"
+	}
+
+	private var activeSearchText: Binding<String> {
+		Binding(
+			get: { selectedAccount == nil ? accountSearchText : transactionSearchText },
+			set: { newValue in
+				if selectedAccount == nil {
+					accountSearchText = newValue
+				} else {
+					transactionSearchText = newValue
+				}
+			}
 		)
 	}
 
@@ -98,33 +120,36 @@ struct MasterView: View {
 				NavigationSplitView {
 					SidebarView(selection: $sidebarSelection)
 						.navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 320)
+						.toolbar(content: sidebarToolbarContent)
 				} content: {
 					ContentView(
 						selectedCategory: $selectedCategory,
 						selectedAccount: $selectedAccount,
+						searchText: $accountSearchText
 					) {
 						showingAddAccount = true
-					} onTransferFromAccount: { account in
-						selectedCategory = account.category
-						sidebarSelection = .category(account.category)
-						selectedAccount = account
-						addTransactionInitialKind = .transferOut
-						showingAddTransaction = true
 					}
+					.toolbar(content: contentToolbarContent)
 					.navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 520)
 				} detail: {
-					DetailView(selectedAccount: $selectedAccount)
+					DetailView(
+						selectedAccount: $selectedAccount,
+						showingEditAccount: $showingEditAccount,
+						searchText: $transactionSearchText
+					)
+					.toolbar(content: detailToolbarContent)
 				}
+				.searchable(text: activeSearchText, placement: .toolbar, prompt: searchPrompt)
 			} else {
 				NavigationSplitView {
 					SidebarView(selection: $sidebarSelection)
+						.toolbar(content: sidebarToolbarContent)
 						.navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 320)
 				} detail: {
 					DashboardView()
 				}
 			}
 		}
-		.toolbar(content: toolbarContent)
 		.sheet(isPresented: $showingAddAccount) {
 			AddAccountView(selectedCategory: selectedCategory) { account in
 				selectedCategory = account.category
@@ -173,11 +198,36 @@ struct MasterView: View {
 		} message: {
 			Text(recurringSyncErrorMessage ?? "Something went wrong.")
 		}
+		.confirmationDialog(
+			"Delete Account?",
+			isPresented: $showingDeleteAccountConfirmation,
+			titleVisibility: .visible
+		) {
+			Button("Delete Account", role: .destructive) {
+				deleteSelectedAccount()
+			}
+			Button("Cancel", role: .cancel) {}
+		} message: {
+			if let selectedAccount {
+				Text("This will permanently delete \(selectedAccount.name) and all of its transactions.")
+			}
+		}
+		.alert(
+			"Couldn't Delete Account",
+			isPresented: Binding(
+				get: { accountDeletionErrorMessage != nil },
+				set: { if !$0 { accountDeletionErrorMessage = nil } }
+			)
+		) {
+			Button("OK", role: .cancel) {}
+		} message: {
+			Text(accountDeletionErrorMessage ?? "Something went wrong.")
+		}
 	}
 	
 	@ToolbarContentBuilder
-	private func toolbarContent() -> some ToolbarContent {
-		ToolbarItem(placement: .automatic) {
+	private func sidebarToolbarContent() -> some ToolbarContent {
+		ToolbarItem(placement: .secondaryAction) {
 			Button {
 				showingSettings = true
 			} label: {
@@ -185,25 +235,61 @@ struct MasterView: View {
 			}
 			.accessibilityLabel("Settings")
 		}
+	}
+	
+	@ToolbarContentBuilder
+	private func contentToolbarContent() -> some ToolbarContent {
 		
+		ToolbarItem(placement: .automatic) {
+			Button {
+				showingEditAccount = true
+			} label: {
+				Label("Edit Account", systemImage: "pencil")
+			}
+			.help("Edit Account")
+			.disabled(selectedAccount == nil)
+		}
+		ToolbarItem(placement: .confirmationAction) {
+			Button(role: .destructive) {
+				showingDeleteAccountConfirmation = selectedAccount != nil
+			} label: {
+				Label("Delete Account", systemImage: "trash")
+			}
+			.help("Delete Account")
+			.disabled(selectedAccount == nil)
+		}
+		ToolbarSpacer()
+		ToolbarItem(placement: .automatic) {
+			Button {
+				addTransactionInitialKind = .transferOut
+				showingAddTransaction = selectedAccount != nil
+			} label: {
+				Label("Transfer from this account", systemImage: "arrow.left.arrow.right")
+			}
+			.help("Transfer from this account")
+			.disabled(selectedAccount == nil)
+		}
 		ToolbarItem(placement: .primaryAction) {
-			Menu {
-				Button {
-					showingAddAccount = true
-				} label: {
-					Label("New Account", systemImage: "building.columns")
-				}
-				
-				Button {
-					addTransactionInitialKind = .expense
-					showingAddTransaction = selectedAccount != nil
-				} label: {
-					Label("New Transaction", systemImage: "list.bullet.rectangle.portrait")
-				}
-				.disabled(selectedAccount == nil)
+			Button {
+				showingAddAccount = true
 			} label: {
 				Image(systemName: "plus")
 			}
+			.help("Add Account")
+		}
+	}
+	
+	@ToolbarContentBuilder
+	private func detailToolbarContent() -> some ToolbarContent {
+		ToolbarItem(placement: .primaryAction) {
+			Button {
+				addTransactionInitialKind = .expense
+				showingAddTransaction = selectedAccount != nil
+			} label: {
+				Image(systemName: "plus")
+			}
+			.help("Add Transaction")
+			.disabled(selectedAccount == nil)
 		}
 	}
 	
@@ -221,6 +307,21 @@ struct MasterView: View {
 			)
 		} catch {
 			recurringSyncErrorMessage = error.localizedDescription
+		}
+	}
+
+	private func deleteSelectedAccount() {
+		guard let selectedAccount else { return }
+		
+		showingEditAccount = false
+		showingAddTransaction = false
+		modelContext.delete(selectedAccount)
+		
+		do {
+			try modelContext.save()
+			self.selectedAccount = nil
+		} catch {
+			accountDeletionErrorMessage = error.localizedDescription
 		}
 	}
 }

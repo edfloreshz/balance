@@ -6,6 +6,7 @@ struct AddAccountView: View {
 	@Environment(\.modelContext) private var modelContext
 	@AppStorage(AppPreferences.globalCurrencyCodeKey) private var globalCurrencyCode: String = AppPreferences.defaultGlobalCurrencyCode
 	
+	private let accountToEdit: Account?
 	let onSave: (Account) -> Void
 	
 	@State private var name = ""
@@ -17,8 +18,24 @@ struct AddAccountView: View {
 	@State private var saveErrorMessage: String?
 	
 	init(selectedCategory: Category, onSave: @escaping (Account) -> Void) {
+		self.accountToEdit = nil
 		self.onSave = onSave
 		_category = State(initialValue: selectedCategory)
+	}
+
+	init(account: Account, onSave: @escaping (Account) -> Void = { _ in }) {
+		self.accountToEdit = account
+		self.onSave = onSave
+		_name = State(initialValue: account.name)
+		_icon = State(initialValue: account.icon)
+		_category = State(initialValue: account.category)
+		_openingBalanceText = State(initialValue: String(format: "%.2f", account.balance))
+		_currency = State(initialValue: account.currency)
+		_isArchived = State(initialValue: account.isArchived)
+	}
+
+	private var isEditing: Bool {
+		accountToEdit != nil
 	}
 	
 	private var openingBalance: Double? {
@@ -48,8 +65,10 @@ struct AddAccountView: View {
 	
 	var body: some View {
 		EditorSheet(
-			title: "New Account",
-			subtitle: "Create an account with a category, opening balance, and currency."
+			title: isEditing ? "Edit Account" : "New Account",
+			subtitle: isEditing
+				? "Update account details, balance, and currency."
+				: "Create an account with a category, opening balance, and currency."
 		) {
 			EditorSection("Account Details") {
 				EditorFieldRow("Name") {
@@ -101,7 +120,7 @@ struct AddAccountView: View {
 				dismiss()
 			}
 			
-			Button("Save") {
+			Button(isEditing ? "Update" : "Save") {
 				save()
 			}
 			.keyboardShortcut(.defaultAction)
@@ -131,17 +150,27 @@ struct AddAccountView: View {
 			saveErrorMessage = "Enter a valid opening balance."
 			return
 		}
-		
-		let account = Account(
-			name: trimmedName,
-			icon: trimmedIcon,
-			category: category,
-			balance: openingBalance,
-			currency: normalizedCurrency,
-			isArchived: isArchived
-		)
-		
-		modelContext.insert(account)
+
+		let account: Account
+		if let accountToEdit {
+			accountToEdit.name = trimmedName
+			accountToEdit.icon = trimmedIcon
+			accountToEdit.category = category
+			accountToEdit.balance = openingBalance
+			accountToEdit.currency = normalizedCurrency
+			accountToEdit.isArchived = isArchived
+			account = accountToEdit
+		} else {
+			account = Account(
+				name: trimmedName,
+				icon: trimmedIcon,
+				category: category,
+				balance: openingBalance,
+				currency: normalizedCurrency,
+				isArchived: isArchived
+			)
+			modelContext.insert(account)
+		}
 		
 		do {
 			try modelContext.save()
