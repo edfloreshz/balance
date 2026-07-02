@@ -1,73 +1,12 @@
+//
+//  MasterView.swift
+//  Balance
+//
+//  Created by Eduardo Flores on 02/07/26.
+//
+
 import SwiftData
 import SwiftUI
-
-enum AppPreferences {
-	static let usesAutomaticTimeZoneKey = "settings.usesAutomaticTimeZone"
-	static let selectedTimeZoneIdentifierKey = "settings.selectedTimeZoneIdentifier"
-	static let dailyTransferLimitKey = "settings.dailyTransferLimit"
-	static let globalCurrencyCodeKey = "settings.globalCurrencyCode"
-	
-	static var defaultGlobalCurrencyCode: String {
-		Locale.autoupdatingCurrent.currency?.identifier ?? "USD"
-	}
-	
-	static var availableCurrencyCodes: [String] {
-		Locale.commonISOCurrencyCodes.sorted {
-			currencyDisplayName(for: $0).localizedCaseInsensitiveCompare(currencyDisplayName(for: $1)) == .orderedAscending
-		}
-	}
-	
-	static func currencyDisplayName(for code: String, locale: Locale = .autoupdatingCurrent) -> String {
-		locale.localizedString(forCurrencyCode: code) ?? code
-	}
-	
-	static func effectiveTimeZone(
-		usesAutomaticTimeZone: Bool,
-		selectedTimeZoneIdentifier: String
-	) -> TimeZone {
-		if usesAutomaticTimeZone {
-			return .autoupdatingCurrent
-		}
-		
-		return TimeZone(identifier: selectedTimeZoneIdentifier) ?? .autoupdatingCurrent
-	}
-	
-	static func synchronizeAutomaticTimeZoneIfNeeded(defaults: UserDefaults = .standard) {
-		if defaults.object(forKey: usesAutomaticTimeZoneKey) == nil {
-			defaults.set(true, forKey: usesAutomaticTimeZoneKey)
-		}
-		
-		if defaults.object(forKey: dailyTransferLimitKey) == nil {
-			defaults.set(0.0, forKey: dailyTransferLimitKey)
-		}
-		
-		if defaults.object(forKey: selectedTimeZoneIdentifierKey) == nil {
-			defaults.set(TimeZone.autoupdatingCurrent.identifier, forKey: selectedTimeZoneIdentifierKey)
-		}
-		
-		if defaults.object(forKey: globalCurrencyCodeKey) == nil {
-			defaults.set(defaultGlobalCurrencyCode, forKey: globalCurrencyCodeKey)
-		}
-		
-		let usesAutomatic = defaults.bool(forKey: usesAutomaticTimeZoneKey)
-		if usesAutomatic {
-			defaults.set(TimeZone.autoupdatingCurrent.identifier, forKey: selectedTimeZoneIdentifierKey)
-		}
-	}
-}
-
-@main struct Balance: App {
-	init() {
-		AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()
-	}
-	
-	var body: some Scene {
-		WindowGroup {
-			MasterView()
-		}
-		.modelContainer(for: [Account.self, Transaction.self])
-	}
-}
 
 struct MasterView: View {
 	@Environment(\.modelContext) private var modelContext
@@ -76,19 +15,7 @@ struct MasterView: View {
 	@AppStorage(AppPreferences.selectedTimeZoneIdentifierKey) private var selectedTimeZoneIdentifier: String = TimeZone.autoupdatingCurrent.identifier
 	@Query(sort: \Transaction.date, order: .reverse) private var recurringTransactions: [Transaction]
 	
-	@State var selectedCategory: Category = .savings
-	@State private var sidebarSelection: SidebarSelection = .dashboard
-	@State var selectedAccount: Account?
-	@State private var accountSearchText: String = ""
-	@State private var transactionSearchText: String = ""
-	@State private var showingAddAccount = false
-	@State private var showingAddTransaction = false
-	@State private var showingSettings = false
-	@State private var addTransactionInitialKind: TransactionKind = .expense
-	@State private var recurringSyncErrorMessage: String?
-	@State private var accountDeletionErrorMessage: String?
-	@State private var showingDeleteAccountConfirmation = false
-	@State private var showingEditAccount: Bool = false
+	@State private var viewModel = MasterViewModel()
 	
 	private var timeZone: TimeZone {
 		AppPreferences.effectiveTimeZone(
@@ -97,52 +24,27 @@ struct MasterView: View {
 		)
 	}
 
-	private var searchPrompt: String {
-		selectedAccount == nil ? "Search accounts" : "Search transactions"
-	}
-
-	private var activeSearchText: Binding<String> {
-		Binding(
-			get: { selectedAccount == nil ? accountSearchText : transactionSearchText },
-			set: { newValue in
-				if selectedAccount == nil {
-					accountSearchText = newValue
-				} else {
-					transactionSearchText = newValue
-				}
-			}
-		)
-	}
-
 	var body: some View {
+		@Bindable var viewModel = viewModel
+
 		Group {
-			if case .category = sidebarSelection {
+			if case .category = viewModel.sidebarSelection {
 				NavigationSplitView {
-					SidebarView(selection: $sidebarSelection)
+					SidebarView(viewModel: viewModel)
 						.navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 320)
 						.toolbar(content: sidebarToolbarContent)
 				} content: {
-					ContentView(
-						selectedCategory: $selectedCategory,
-						selectedAccount: $selectedAccount,
-						searchText: $accountSearchText
-					) {
-						showingAddAccount = true
-					}
+					ContentView(viewModel: viewModel)
 					.toolbar(content: contentToolbarContent)
 					.navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 520)
 				} detail: {
-					DetailView(
-						selectedAccount: $selectedAccount,
-						showingEditAccount: $showingEditAccount,
-						searchText: $transactionSearchText
-					)
+					DetailView(viewModel: viewModel)
 					.toolbar(content: detailToolbarContent)
 				}
-				.searchable(text: activeSearchText, placement: .toolbar, prompt: searchPrompt)
+				.searchable(text: $viewModel.activeSearchText, placement: .toolbar, prompt: viewModel.searchPrompt)
 			} else {
 				NavigationSplitView {
-					SidebarView(selection: $sidebarSelection)
+					SidebarView(viewModel: viewModel)
 						.toolbar(content: sidebarToolbarContent)
 						.navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 320)
 				} detail: {
@@ -150,37 +52,28 @@ struct MasterView: View {
 				}
 			}
 		}
-		.sheet(isPresented: $showingAddAccount) {
-			AddAccountView(selectedCategory: selectedCategory) { account in
-				selectedCategory = account.category
-				sidebarSelection = .category(account.category)
-				selectedAccount = account
+		.sheet(isPresented: $viewModel.showingAddAccount) {
+			AccountEditorView(selectedCategory: viewModel.selectedCategory) { account in
+				viewModel.handleAccountCreated(account)
 			}
 		}
-		.sheet(isPresented: $showingAddTransaction) {
-			if let selectedAccount {
-				AddTransactionView(account: selectedAccount, initialKind: addTransactionInitialKind)
+		.sheet(isPresented: $viewModel.showingAddTransaction) {
+			if let selectedAccount = viewModel.selectedAccount {
+				TransactionEditorView(account: selectedAccount, initialKind: viewModel.addTransactionInitialKind)
 			}
 		}
-		.sheet(isPresented: $showingSettings) {
+		.sheet(isPresented: $viewModel.showingSettings) {
 			SettingsView()
 		}
 		.onAppear {
 			AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()
 			processRecurringTransactionsIfNeeded()
 		}
-		.onChange(of: selectedCategory) { _, newCategory in
-			if case .category = sidebarSelection {
-				sidebarSelection = .category(newCategory)
-			}
+		.onChange(of: viewModel.selectedCategory) { _, _ in
+			viewModel.synchronizeSidebarSelectionWithCategory()
 		}
-		.onChange(of: sidebarSelection) { _, newSelection in
-			switch newSelection {
-			case .dashboard:
-				selectedAccount = nil
-			case .category(let category):
-				selectedCategory = category
-			}
+		.onChange(of: viewModel.sidebarSelection) { _, _ in
+			viewModel.handleSidebarSelectionChange()
 		}
 		.onChange(of: scenePhase) { _, newPhase in
 			if newPhase == .active {
@@ -190,17 +83,17 @@ struct MasterView: View {
 		.alert(
 			"Couldn't Process Recurring Transactions",
 			isPresented: Binding(
-				get: { recurringSyncErrorMessage != nil },
-				set: { if !$0 { recurringSyncErrorMessage = nil } }
+				get: { viewModel.recurringSyncErrorMessage != nil },
+				set: { if !$0 { viewModel.recurringSyncErrorMessage = nil } }
 			)
 		) {
 			Button("OK", role: .cancel) {}
 		} message: {
-			Text(recurringSyncErrorMessage ?? "Something went wrong.")
+			Text(viewModel.recurringSyncErrorMessage ?? "Something went wrong.")
 		}
 		.confirmationDialog(
 			"Delete Account?",
-			isPresented: $showingDeleteAccountConfirmation,
+			isPresented: $viewModel.showingDeleteAccountConfirmation,
 			titleVisibility: .visible
 		) {
 			Button("Delete Account", role: .destructive) {
@@ -208,20 +101,20 @@ struct MasterView: View {
 			}
 			Button("Cancel", role: .cancel) {}
 		} message: {
-			if let selectedAccount {
+			if let selectedAccount = viewModel.selectedAccount {
 				Text("This will permanently delete \(selectedAccount.name) and all of its transactions.")
 			}
 		}
 		.alert(
 			"Couldn't Delete Account",
 			isPresented: Binding(
-				get: { accountDeletionErrorMessage != nil },
-				set: { if !$0 { accountDeletionErrorMessage = nil } }
+				get: { viewModel.accountDeletionErrorMessage != nil },
+				set: { if !$0 { viewModel.accountDeletionErrorMessage = nil } }
 			)
 		) {
 			Button("OK", role: .cancel) {}
 		} message: {
-			Text(accountDeletionErrorMessage ?? "Something went wrong.")
+			Text(viewModel.accountDeletionErrorMessage ?? "Something went wrong.")
 		}
 	}
 	
@@ -229,7 +122,7 @@ struct MasterView: View {
 	private func sidebarToolbarContent() -> some ToolbarContent {
 		ToolbarItem(placement: .secondaryAction) {
 			Button {
-				showingSettings = true
+				viewModel.showingSettings = true
 			} label: {
 				Image(systemName: "gearshape")
 			}
@@ -242,36 +135,35 @@ struct MasterView: View {
 		
 		ToolbarItem(placement: .automatic) {
 			Button {
-				showingEditAccount = true
+				viewModel.showingEditAccount = true
 			} label: {
 				Label("Edit Account", systemImage: "pencil")
 			}
 			.help("Edit Account")
-			.disabled(selectedAccount == nil)
+			.disabled(viewModel.selectedAccount == nil)
 		}
 		ToolbarItem(placement: .confirmationAction) {
 			Button(role: .destructive) {
-				showingDeleteAccountConfirmation = selectedAccount != nil
+				viewModel.requestSelectedAccountDeletion()
 			} label: {
 				Label("Delete Account", systemImage: "trash")
 			}
 			.help("Delete Account")
-			.disabled(selectedAccount == nil)
+			.disabled(viewModel.selectedAccount == nil)
 		}
 		ToolbarSpacer()
 		ToolbarItem(placement: .automatic) {
 			Button {
-				addTransactionInitialKind = .transferOut
-				showingAddTransaction = selectedAccount != nil
+				viewModel.showAddTransaction(initialKind: .transferOut)
 			} label: {
 				Label("Transfer from this account", systemImage: "arrow.left.arrow.right")
 			}
 			.help("Transfer from this account")
-			.disabled(selectedAccount == nil)
+			.disabled(viewModel.selectedAccount == nil)
 		}
 		ToolbarItem(placement: .primaryAction) {
 			Button {
-				showingAddAccount = true
+				viewModel.showingAddAccount = true
 			} label: {
 				Image(systemName: "plus")
 			}
@@ -283,13 +175,12 @@ struct MasterView: View {
 	private func detailToolbarContent() -> some ToolbarContent {
 		ToolbarItem(placement: .primaryAction) {
 			Button {
-				addTransactionInitialKind = .expense
-				showingAddTransaction = selectedAccount != nil
+				viewModel.showAddTransaction(initialKind: .expense)
 			} label: {
 				Image(systemName: "plus")
 			}
 			.help("Add Transaction")
-			.disabled(selectedAccount == nil)
+			.disabled(viewModel.selectedAccount == nil)
 		}
 	}
 	
@@ -306,22 +197,22 @@ struct MasterView: View {
 				calendar: calendar
 			)
 		} catch {
-			recurringSyncErrorMessage = error.localizedDescription
+			viewModel.recurringSyncErrorMessage = error.localizedDescription
 		}
 	}
 
 	private func deleteSelectedAccount() {
-		guard let selectedAccount else { return }
+		guard let selectedAccount = viewModel.selectedAccount else { return }
 		
-		showingEditAccount = false
-		showingAddTransaction = false
+		viewModel.showingEditAccount = false
+		viewModel.showingAddTransaction = false
 		modelContext.delete(selectedAccount)
 		
 		do {
 			try modelContext.save()
-			self.selectedAccount = nil
+			viewModel.selectedAccount = nil
 		} catch {
-			accountDeletionErrorMessage = error.localizedDescription
+			viewModel.accountDeletionErrorMessage = error.localizedDescription
 		}
 	}
 }
@@ -359,14 +250,25 @@ struct SettingsView: View {
 #endif
 							.textFieldStyle(.roundedBorder)
 							.onChange(of: dailyTransferLimitText) { _, newValue in
+								let sanitized = MoneyInputFormatter.sanitize(newValue)
+								if sanitized != newValue {
+									dailyTransferLimitText = sanitized
+									return
+								}
+								
 								let normalized = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
 								if normalized.isEmpty {
 									dailyTransferLimit = 0
 									return
 								}
 								
-								if let parsedValue = Double(normalized), parsedValue >= 0 {
+								if let parsedValue = MoneyInputFormatter.parse(normalized), parsedValue >= 0 {
 									dailyTransferLimit = parsedValue
+								}
+							}
+							.onSubmit {
+								if dailyTransferLimit > 0 {
+									dailyTransferLimitText = MoneyInputFormatter.format(dailyTransferLimit)
 								}
 							}
 						
@@ -412,7 +314,7 @@ struct SettingsView: View {
 		.onAppear {
 			AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()
 			if dailyTransferLimit > 0 {
-				dailyTransferLimitText = String(format: "%.2f", dailyTransferLimit)
+				dailyTransferLimitText = MoneyInputFormatter.format(dailyTransferLimit)
 			} else {
 				dailyTransferLimitText = ""
 			}
@@ -421,11 +323,11 @@ struct SettingsView: View {
 }
 
 #Preview("Unselected") {
-	MasterView(selectedAccount: nil)
+	MasterView()
 		.modelContainer(PreviewData.shared.modelContainer)
 }
 
 #Preview("Selected") {
-	MasterView(selectedAccount: Account.sampleData[0])
+	MasterView()
 		.modelContainer(PreviewData.shared.modelContainer)
 }

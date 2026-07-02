@@ -9,27 +9,16 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-	@Binding var selectedCategory: Category
-	@Binding var selectedAccount: Account?
-	@Binding var searchText: String
+	@Bindable var viewModel: MasterViewModel
 	@Environment(\.modelContext) private var modelContext
-	let onAddAccount: (() -> Void)?
 	@Query var accounts: [Account]
 	@State private var editingAccount: Account?
 	@State private var saveErrorMessage: String?
 	
-	init(
-		selectedCategory: Binding<Category>,
-		selectedAccount: Binding<Account?>,
-		searchText: Binding<String>,
-		onAddAccount: (() -> Void)? = nil
-	) {
-		self._selectedCategory = selectedCategory
-		self._selectedAccount = selectedAccount
-		self._searchText = searchText
-		self.onAddAccount = onAddAccount
+	init(viewModel: MasterViewModel) {
+		self.viewModel = viewModel
 		
-		let targetCategoryRawValue = selectedCategory.wrappedValue.rawValue
+		let targetCategoryRawValue = viewModel.selectedCategory.rawValue
 		
 		let predicate = #Predicate<Account> { account in
 			account.categoryRawValue == targetCategoryRawValue
@@ -39,10 +28,10 @@ struct ContentView: View {
 	}
 
 	private var filteredAccounts: [Account] {
-		guard !searchText.isEmpty else { return accounts }
+		guard !viewModel.accountSearchText.isEmpty else { return accounts }
 		return accounts.filter { account in
-			account.name.localizedCaseInsensitiveContains(searchText)
-			|| account.currency.localizedCaseInsensitiveContains(searchText)
+			account.name.localizedCaseInsensitiveContains(viewModel.accountSearchText)
+			|| account.currency.localizedCaseInsensitiveContains(viewModel.accountSearchText)
 		}
 	}
 	
@@ -56,25 +45,25 @@ struct ContentView: View {
 						description: Text("Accounts will appear here")
 					)
 					
-					if let onAddAccount {
-						Button("Add Account", action: onAddAccount)
-							.buttonStyle(.borderedProminent)
+					Button("Add Account") {
+						viewModel.showingAddAccount = true
 					}
+					.buttonStyle(.borderedProminent)
 				}
 			} else {
 				VStack(spacing: 0) {
 					if filteredAccounts.isEmpty {
 						VStack {
 							Spacer()
-							ContentUnavailableView.search(text: searchText)
+							ContentUnavailableView.search(text: viewModel.accountSearchText)
 							Spacer()
 						}
 						.frame(maxWidth: .infinity, maxHeight: .infinity)
 					} else {
-						List(selection: $selectedAccount) {
+						List(selection: $viewModel.selectedAccount) {
 							ForEach(filteredAccounts) { account in
 								NavigationLink(value: account) {
-									AccountRow(account: account)
+									AccountView(account: account)
 								}
 								.swipeActions(edge: .trailing, allowsFullSwipe: false) {
 									Button {
@@ -98,14 +87,14 @@ struct ContentView: View {
 				.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 			}
 		}
-		.onChange(of: searchText) { _, _ in
-			guard let selectedAccount else { return }
+		.onChange(of: viewModel.accountSearchText) { _, _ in
+			guard let selectedAccount = viewModel.selectedAccount else { return }
 			if !filteredAccounts.contains(where: { $0.id == selectedAccount.id }) {
-				self.selectedAccount = nil
+				viewModel.selectedAccount = nil
 			}
 		}
 		.sheet(item: $editingAccount) { account in
-			AddAccountView(account: account)
+			AccountEditorView(account: account)
 		}
 		.alert(
 			"Couldn't Update Account",
@@ -121,8 +110,8 @@ struct ContentView: View {
     }
 
 	private func delete(_ account: Account) {
-		if selectedAccount?.id == account.id {
-			selectedAccount = nil
+		if viewModel.selectedAccount?.id == account.id {
+			viewModel.selectedAccount = nil
 		}
 		
 		modelContext.delete(account)
@@ -137,10 +126,6 @@ struct ContentView: View {
 }
 
 #Preview {
-	@Previewable @State var selectedCategory: Category = .savings
-	@Previewable @State var selectedAccount: Account? = nil
-	@Previewable @State var searchText: String = ""
-
-	ContentView(selectedCategory: $selectedCategory, selectedAccount: $selectedAccount, searchText: $searchText)
+	ContentView(viewModel: MasterViewModel())
 		.modelContainer(PreviewData.shared.modelContainer)
 }

@@ -6,7 +6,7 @@
 //
 import SwiftUI
 
-struct AccountRow: View {
+struct AccountView: View {
 	let account: Account
 	
 	var body: some View {
@@ -44,9 +44,9 @@ struct AccountRow: View {
 
 #Preview {
 	List {
-		AccountRow(account: .init(name: "BBVA", icon: "🏦", category: .savings, balance: 15230.75))
-		AccountRow(account: .init(name: "BBVA Oro", icon: "🏦", category: .creditCard, balance: -2340.10))
-		AccountRow(account: .init(name: "Crypto", icon: "🏦", category: .investment, balance: 8900))
+		AccountView(account: .init(name: "BBVA", icon: "🏦", category: .savings, balance: 15230.75))
+		AccountView(account: .init(name: "BBVA Oro", icon: "🏦", category: .creditCard, balance: -2340.10))
+		AccountView(account: .init(name: "Crypto", icon: "🏦", category: .investment, balance: 8900))
 	}
 	.listStyle(.plain)
 }

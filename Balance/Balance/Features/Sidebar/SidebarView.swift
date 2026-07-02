@@ -13,14 +13,14 @@ enum SidebarSelection: Hashable {
 }
 
 struct SidebarView: View {
-	@Binding var selection: SidebarSelection
+	@Bindable var viewModel: MasterViewModel
 	
 	private var sidebarSelection: Binding<SidebarSelection?> {
 		Binding(
-			get: { selection },
+			get: { viewModel.sidebarSelection },
 			set: { newValue in
 				guard let newValue else { return }
-				selection = newValue
+				viewModel.sidebarSelection = newValue
 			}
 		)
 	}
@@ -37,7 +37,7 @@ struct SidebarView: View {
 			Section("Accounts") {
 				ForEach(Category.allCases) { category in
 					NavigationLink(value: SidebarSelection.category(category)) {
-						CategoryRow(category: category)
+						CategoryView(category: category)
 					}
 					.tag(SidebarSelection.category(category))
 				}
@@ -47,7 +47,5 @@ struct SidebarView: View {
 }
 
 #Preview {
-	@Previewable @State var selection: SidebarSelection = .dashboard
-
-	SidebarView(selection: $selection)
+	SidebarView(viewModel: MasterViewModel())
 }

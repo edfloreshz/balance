@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-struct AddAccountView: View {
+struct AccountEditorView: View {
 	@Environment(\.dismiss) private var dismiss
 	@Environment(\.modelContext) private var modelContext
 	@AppStorage(AppPreferences.globalCurrencyCodeKey) private var globalCurrencyCode: String = AppPreferences.defaultGlobalCurrencyCode
@@ -29,7 +29,7 @@ struct AddAccountView: View {
 		_name = State(initialValue: account.name)
 		_icon = State(initialValue: account.icon)
 		_category = State(initialValue: account.category)
-		_openingBalanceText = State(initialValue: String(format: "%.2f", account.balance))
+		_openingBalanceText = State(initialValue: MoneyInputFormatter.format(account.balance))
 		_currency = State(initialValue: account.currency)
 		_isArchived = State(initialValue: account.isArchived)
 	}
@@ -43,7 +43,7 @@ struct AddAccountView: View {
 			return 0
 		}
 		
-		return Double(openingBalanceText)
+		return MoneyInputFormatter.parse(openingBalanceText)
 	}
 	
 	private var trimmedName: String {
@@ -104,6 +104,17 @@ struct AddAccountView: View {
 						.keyboardType(.decimalPad)
 #endif
 						.textFieldStyle(.roundedBorder)
+						.onChange(of: openingBalanceText) { _, newValue in
+							let sanitized = MoneyInputFormatter.sanitize(newValue, allowsNegative: true)
+							if sanitized != newValue {
+								openingBalanceText = sanitized
+							}
+						}
+						.onSubmit {
+							if let openingBalance {
+								openingBalanceText = MoneyInputFormatter.format(openingBalance)
+							}
+						}
 				}
 				
 				EditorFieldRow("Currency") {
@@ -183,6 +194,6 @@ struct AddAccountView: View {
 }
 
 #Preview {
-	AddAccountView(selectedCategory: .checking) { _ in }
+	AccountEditorView(selectedCategory: .checking) { _ in }
 		.modelContainer(PreviewData.shared.modelContainer)
 }

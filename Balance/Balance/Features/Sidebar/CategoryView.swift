@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct CategoryRow: View {
+struct CategoryView: View {
 	@State var category: Category
 	
     var body: some View {
@@ -19,5 +19,5 @@ struct CategoryRow: View {
 }
 
 #Preview {
-	CategoryRow(category: .savings)
+	CategoryView(category: .savings)
 }

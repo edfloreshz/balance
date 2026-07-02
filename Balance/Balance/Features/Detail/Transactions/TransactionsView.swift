@@ -9,35 +9,11 @@ import SwiftData
 import SwiftUI
 
 struct TransactionsView: View {
-	enum DetailTab: String, CaseIterable, Identifiable {
-		case transactions
-		case recurring
-		
-		var id: Self { self }
-		
-		var title: String {
-			switch self {
-			case .transactions: return "Transactions"
-			case .recurring: return "Recurring"
-			}
-		}
-	}
-
-	enum AddTransactionMode: String, Identifiable {
-		case oneTime
-		case recurring
-		
-		var id: String { rawValue }
-	}
-	
 	@Bindable var account: Account
+	@Bindable var viewModel: MasterViewModel
 	@AppStorage(AppPreferences.usesAutomaticTimeZoneKey) private var usesAutomaticTimeZone: Bool = true
 	@AppStorage(AppPreferences.selectedTimeZoneIdentifierKey) private var selectedTimeZoneIdentifier: String = TimeZone.autoupdatingCurrent.identifier
-	@Binding var searchText: String
-	@State private var addTransactionMode: AddTransactionMode?
-	@Binding var showingEditAccount: Bool
-	@State private var saveErrorMessage: String?
-	@State private var selectedTab: DetailTab = .transactions
+	@State private var transactionsViewModel = TransactionsViewModel()
 	
 	private var timeZone: TimeZone {
 		AppPreferences.effectiveTimeZone(
@@ -46,72 +22,60 @@ struct TransactionsView: View {
 		)
 	}
 	
-	private var showingAddTransactionBinding: Binding<Bool> {
-		Binding(
-			get: { addTransactionMode != nil },
-			set: { shouldShow in
-				if !shouldShow {
-					addTransactionMode = nil
-				} else if addTransactionMode == nil {
-					addTransactionMode = .oneTime
-				}
-			}
-		)
-	}
-	
-	private var startsAsRecurringBinding: Binding<Bool> {
-		Binding(
-			get: { addTransactionMode == .recurring },
-			set: { startsAsRecurring in
-				addTransactionMode = startsAsRecurring ? .recurring : .oneTime
-			}
-		)
-	}
-	
 	var body: some View {
+		@Bindable var transactionsViewModel = transactionsViewModel
+
 		VStack(spacing: 0) {
-			AccountSummaryHeader(account: account)
+			AccountHeader(account: account)
 			tabPicker
 			
 			TransactionsListView(
 				account: account,
-				mode: selectedTab == .transactions ? .transactions : .recurring,
-				searchText: $searchText,
-				showingAddTransaction: showingAddTransactionBinding,
-				startsAsRecurring: startsAsRecurringBinding,
-				saveErrorMessage: $saveErrorMessage
+				mode: transactionsViewModel.mode,
+				viewModel: transactionsViewModel
 			)
 		}
 		.navigationTitle(account.name)
 #if os(iOS)
 			.navigationBarTitleDisplayMode(.inline)
 #endif
-			.sheet(item: $addTransactionMode) { mode in
-				AddTransactionView(account: account, startsAsRecurring: mode == .recurring)
+			.sheet(item: $transactionsViewModel.addTransactionMode) { mode in
+				TransactionEditorView(account: account, startsAsRecurring: mode == .recurring)
 			}
-			.sheet(isPresented: $showingEditAccount) {
-				AddAccountView(account: account)
+			.sheet(isPresented: $viewModel.showingEditAccount) {
+				AccountEditorView(account: account)
 			}
 			.alert(
 				"Couldn't Update Account",
 				isPresented: Binding(
-					get: { saveErrorMessage != nil },
-					set: { if !$0 { saveErrorMessage = nil } }
+					get: { transactionsViewModel.saveErrorMessage != nil },
+					set: { if !$0 { transactionsViewModel.saveErrorMessage = nil } }
 				)
 			) {
 				Button("OK", role: .cancel) {}
 			} message: {
-				Text(saveErrorMessage ?? "Something went wrong.")
+				Text(transactionsViewModel.saveErrorMessage ?? "Something went wrong.")
 			}
 		.environment(\.timeZone, timeZone)
 		.onAppear {
 			AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()
+			transactionsViewModel.searchText = viewModel.transactionSearchText
+		}
+		.onChange(of: transactionsViewModel.searchText) { _, newValue in
+			if viewModel.transactionSearchText != newValue {
+				viewModel.transactionSearchText = newValue
+			}
+		}
+		.onChange(of: viewModel.transactionSearchText) { _, newValue in
+			if transactionsViewModel.searchText != newValue {
+				transactionsViewModel.searchText = newValue
+			}
 		}
 	}
 	
 	private var tabPicker: some View {
-		Picker("", selection: $selectedTab) {
-			ForEach(DetailTab.allCases) { tab in
+		Picker("", selection: $transactionsViewModel.selectedTab) {
+			ForEach(TransactionsDetailTab.allCases) { tab in
 				Text(tab.title).tag(tab)
 			}
 		}
@@ -122,13 +86,10 @@ struct TransactionsView: View {
 }
 
 #Preview {
-	@Previewable @State var showingEditAccount: Bool = false
-	
 	NavigationStack {
 		TransactionsView(
 			account: .init(name: "Chase Checking", category: .checking, balance: 1250.42),
-			searchText: .constant(""),
-			showingEditAccount: $showingEditAccount
+			viewModel: MasterViewModel()
 		)
 	}
 	.modelContainer(for: [Account.self, Transaction.self], inMemory: true)

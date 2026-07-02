@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct AccountSummaryHeader: View {
+struct AccountHeader: View {
 	let account: Account
 	
 	var body: some View {
@@ -27,7 +27,7 @@ struct AccountSummaryHeader: View {
 }
 
 #Preview {
-	AccountSummaryHeader(
+	AccountHeader(
 		account: Account(name: "Chase Checking", icon: "🏦", category: .checking, balance: 1250.42)
 	)
 }

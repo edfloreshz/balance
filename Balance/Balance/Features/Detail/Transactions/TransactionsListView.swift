@@ -15,35 +15,22 @@ struct TransactionsListView: View {
 	}
 
 	@Bindable var account: Account
+	@Bindable var viewModel: TransactionsViewModel
 	private let mode: Mode
-	@Binding var searchText: String
-	@Binding var showingAddTransaction: Bool
-	@Binding var startsAsRecurring: Bool
-	@Binding var saveErrorMessage: String?
 	
 	@Environment(\.modelContext) private var modelContext
 	@Environment(\.timeZone) private var timeZone
 	@Query private var transactions: [Transaction]
 	@Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
-	@State private var expandedTransactionIDs: Set<UUID> = []
-	@State private var selectedTransactionIDs: Set<UUID> = []
-	@State private var showingDeleteTransactionsConfirmation = false
-	@State private var editingTransaction: Transaction?
 	
 	init(
 		account: Account,
 		mode: Mode = .transactions,
-		searchText: Binding<String>,
-		showingAddTransaction: Binding<Bool>,
-		startsAsRecurring: Binding<Bool>,
-		saveErrorMessage: Binding<String?>
+		viewModel: TransactionsViewModel
 	) {
 		self.account = account
 		self.mode = mode
-		self._searchText = searchText
-		self._showingAddTransaction = showingAddTransaction
-		self._startsAsRecurring = startsAsRecurring
-		self._saveErrorMessage = saveErrorMessage
+		self.viewModel = viewModel
 		let accountID = account.id
 
 		let predicate: Predicate<Transaction>
@@ -66,13 +53,13 @@ struct TransactionsListView: View {
 	
 	private var filteredTransactions: [Transaction] {
 		let source: [Transaction]
-		if searchText.isEmpty {
+		if viewModel.searchText.isEmpty {
 			source = transactions
 		} else {
 			source = transactions.filter { transaction in
 				switch mode {
 				case .transactions:
-					return transaction.note.localizedCaseInsensitiveContains(searchText)
+					return transaction.note.localizedCaseInsensitiveContains(viewModel.searchText)
 				case .recurring:
 					let searchable = [
 						transaction.note,
@@ -81,7 +68,7 @@ struct TransactionsListView: View {
 						transaction.account?.name ?? "",
 						transaction.relatedAccount?.name ?? ""
 					].joined(separator: " ")
-					return searchable.localizedCaseInsensitiveContains(searchText)
+					return searchable.localizedCaseInsensitiveContains(viewModel.searchText)
 				}
 			}
 		}
@@ -103,11 +90,11 @@ struct TransactionsListView: View {
 	}
 
 	private var selectedTransactions: [Transaction] {
-		transactions.filter { selectedTransactionIDs.contains($0.id) }
+		transactions.filter { viewModel.selectedTransactionIDs.contains($0.id) }
 	}
 
 	private var canEditSelectedTransaction: Bool {
-		selectedTransactions.count == 1
+		viewModel.canEditSelectedTransaction
 	}
 	
 	private var calendar: Calendar {
@@ -122,7 +109,7 @@ struct TransactionsListView: View {
 				emptyState
 			} else {
 				if mode == .transactions {
-					List(selection: $selectedTransactionIDs) {
+					List(selection: $viewModel.selectedTransactionIDs) {
 						ForEach(groupedTransactions, id: \.date) { group in
 							Section {
 								ForEach(group.items) { transaction in
@@ -140,7 +127,7 @@ struct TransactionsListView: View {
 					}
 					.listStyle(.plain)
 				} else {
-					List(selection: $selectedTransactionIDs) {
+					List(selection: $viewModel.selectedTransactionIDs) {
 						ForEach(filteredTransactions) { transaction in
 							transactionRow(transaction)
 						}
@@ -152,12 +139,11 @@ struct TransactionsListView: View {
 				}
 			}
 		}
-		.sheet(item: $editingTransaction) { transaction in
-			EditTransactionView(transaction: transaction)
+		.sheet(item: $viewModel.editingTransaction) { transaction in
+			TransactionEditorView(transaction: transaction)
 		}
 		.onChange(of: filteredTransactions.map(\.id)) { _, visibleIDs in
-			let visibleIDSet = Set(visibleIDs)
-			selectedTransactionIDs = selectedTransactionIDs.intersection(visibleIDSet)
+			viewModel.retainSelectedTransactionIDs(visibleIDs: visibleIDs)
 		}
 		.toolbar {
 			ToolbarSpacer(.fixed)
@@ -171,17 +157,17 @@ struct TransactionsListView: View {
 				.disabled(!canEditSelectedTransaction)
 				
 				Button(role: .destructive) {
-					showingDeleteTransactionsConfirmation = !selectedTransactionIDs.isEmpty
+					viewModel.showingDeleteTransactionsConfirmation = !viewModel.selectedTransactionIDs.isEmpty
 				} label: {
 					Label("Delete", systemImage: "trash")
 				}
 				.help("Delete")
-				.disabled(selectedTransactionIDs.isEmpty)
+				.disabled(viewModel.selectedTransactionIDs.isEmpty)
 			}
 		}
 		.confirmationDialog(
 			"Delete Transactions?",
-			isPresented: $showingDeleteTransactionsConfirmation,
+			isPresented: $viewModel.showingDeleteTransactionsConfirmation,
 			titleVisibility: .visible
 		) {
 			Button("Delete Transactions", role: .destructive) {
@@ -189,7 +175,7 @@ struct TransactionsListView: View {
 			}
 			Button("Cancel", role: .cancel) {}
 		} message: {
-			let transactionCount = selectedTransactionIDs.count
+			let transactionCount = viewModel.selectedTransactionIDs.count
 			Text(transactionCount == 1
 				? "This transaction will be permanently deleted."
 				: "\(transactionCount) transactions will be permanently deleted.")
@@ -199,7 +185,7 @@ struct TransactionsListView: View {
 	private var emptyState: some View {
 		VStack(spacing: 12) {
 			Spacer()
-			if searchText.isEmpty {
+			if viewModel.searchText.isEmpty {
 				if mode == .transactions {
 					Image(systemName: "tray")
 						.font(.system(size: 40))
@@ -212,8 +198,8 @@ struct TransactionsListView: View {
 						.foregroundStyle(.tertiary)
 					
 					Button("Add Transaction") {
-						startsAsRecurring = false
-						showingAddTransaction = true
+						viewModel.startsAsRecurring = false
+						viewModel.showingAddTransaction = true
 					}
 					.buttonStyle(.borderedProminent)
 				} else {
@@ -228,13 +214,13 @@ struct TransactionsListView: View {
 						.foregroundStyle(.tertiary)
 
 					Button("Add Recurrent Transaction") {
-						startsAsRecurring = true
-						showingAddTransaction = true
+						viewModel.startsAsRecurring = true
+						viewModel.showingAddTransaction = true
 					}
 					.buttonStyle(.borderedProminent)
 				}
 			} else {
-				ContentUnavailableView.search(text: searchText)
+				ContentUnavailableView.search(text: viewModel.searchText)
 			}
 			Spacer()
 		}
@@ -249,7 +235,7 @@ struct TransactionsListView: View {
 		do {
 			try modelContext.save()
 		} catch {
-			saveErrorMessage = error.localizedDescription
+			viewModel.saveErrorMessage = error.localizedDescription
 		}
 	}
 
@@ -258,8 +244,8 @@ struct TransactionsListView: View {
 	}
 
 	private func delete(_ transaction: Transaction, saveAfterDelete: Bool) {
-		expandedTransactionIDs.remove(transaction.id)
-		selectedTransactionIDs.remove(transaction.id)
+		viewModel.expandedTransactionIDs.remove(transaction.id)
+		viewModel.selectedTransactionIDs.remove(transaction.id)
 
 		if mode == .transactions {
 			account.balance -= transaction.amount
@@ -268,7 +254,7 @@ struct TransactionsListView: View {
 				if let counterpart = allTransactions.first(where: {
 					$0.transferGroupID == transferGroupID && $0.id != transaction.id
 				}) {
-					selectedTransactionIDs.remove(counterpart.id)
+					viewModel.selectedTransactionIDs.remove(counterpart.id)
 					counterpart.account?.balance -= counterpart.amount
 					modelContext.delete(counterpart)
 				}
@@ -281,19 +267,19 @@ struct TransactionsListView: View {
 			do {
 				try modelContext.save()
 			} catch {
-				saveErrorMessage = error.localizedDescription
+				viewModel.saveErrorMessage = error.localizedDescription
 			}
 		}
 	}
 	
 	private func binding(for transaction: Transaction) -> Binding<Bool> {
 		Binding(
-			get: { expandedTransactionIDs.contains(transaction.id) },
+			get: { viewModel.expandedTransactionIDs.contains(transaction.id) },
 			set: { isExpanded in
 				if isExpanded {
-					expandedTransactionIDs.insert(transaction.id)
+					viewModel.expandedTransactionIDs.insert(transaction.id)
 				} else {
-					expandedTransactionIDs.remove(transaction.id)
+					viewModel.expandedTransactionIDs.remove(transaction.id)
 				}
 			}
 		)
@@ -309,7 +295,7 @@ struct TransactionsListView: View {
 		.tag(transaction.id)
 		.swipeActions(edge: .trailing, allowsFullSwipe: false) {
 			Button {
-				editingTransaction = transaction
+				viewModel.editingTransaction = transaction
 			} label: {
 				Label("Edit", systemImage: "pencil")
 			}
@@ -325,11 +311,11 @@ struct TransactionsListView: View {
 
 	private func editSelectedTransaction() {
 		guard canEditSelectedTransaction else { return }
-		editingTransaction = selectedTransactions.first
+		viewModel.editingTransaction = selectedTransactions.first
 	}
 
 	private func deleteSelectedTransactions() {
-		var pendingIDs = selectedTransactionIDs
+		var pendingIDs = viewModel.selectedTransactionIDs
 		
 		while let transactionID = pendingIDs.first {
 			guard let transaction = allTransactions.first(where: { $0.id == transactionID }) else {
@@ -353,7 +339,7 @@ struct TransactionsListView: View {
 		do {
 			try modelContext.save()
 		} catch {
-			saveErrorMessage = error.localizedDescription
+			viewModel.saveErrorMessage = error.localizedDescription
 		}
 	}
 }
