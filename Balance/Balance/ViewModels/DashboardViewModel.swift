@@ -1,19 +1,11 @@
+//
+//  DashboardViewModel.swift
+//  Balance
+//
+//  Created by Eduardo Flores on 02/07/26.
+//
+
 import Foundation
-
-struct DashboardCategoryBalanceSummary: Identifiable {
-	let category: Category
-	let totalBalance: Double
-
-	var id: Category { category }
-}
-
-struct DashboardDailyFlowSummary: Identifiable {
-	let date: Date
-	let income: Double
-	let expense: Double
-
-	var id: Date { date }
-}
 
 struct DashboardViewModel {
 	let accounts: [Account]

@@ -7,11 +7,6 @@
 
 import SwiftUI
 
-enum SidebarSelection: Hashable {
-	case dashboard
-	case category(Category)
-}
-
 struct SidebarView: View {
 	@Bindable var viewModel: MasterViewModel
 	
@@ -34,7 +29,7 @@ struct SidebarView: View {
 				.tag(SidebarSelection.dashboard)
 			}
 			
-			Section("Accounts") {
+			Section("Categories") {
 				ForEach(Category.allCases) { category in
 					NavigationLink(value: SidebarSelection.category(category)) {
 						CategoryView(category: category)

@@ -29,7 +29,7 @@ struct TransactionsView: View {
 			AccountHeader(account: account)
 			tabPicker
 			
-			TransactionsListView(
+			TransactionListView(
 				account: account,
 				mode: transactionsViewModel.mode,
 				viewModel: transactionsViewModel

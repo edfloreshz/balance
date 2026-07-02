@@ -1,26 +1,12 @@
+//
+//  TransactionsViewModel.swift
+//  Balance
+//
+//  Created by Eduardo Flores on 02/07/26.
+//
+
 import Foundation
 import Observation
-
-enum TransactionsDetailTab: String, CaseIterable, Identifiable {
-	case transactions
-	case recurring
-
-	var id: Self { self }
-
-	var title: String {
-		switch self {
-		case .transactions: return "Transactions"
-		case .recurring: return "Recurring"
-		}
-	}
-}
-
-enum AddTransactionMode: String, Identifiable {
-	case oneTime
-	case recurring
-
-	var id: String { rawValue }
-}
 
 @Observable
 final class TransactionsViewModel {
@@ -33,7 +19,7 @@ final class TransactionsViewModel {
 	var showingDeleteTransactionsConfirmation = false
 	var editingTransaction: Transaction?
 
-	var mode: TransactionsListView.Mode {
+	var mode: TransactionListView.Mode {
 		selectedTab == .transactions ? .transactions : .recurring
 	}
 

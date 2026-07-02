@@ -8,7 +8,7 @@
 import SwiftData
 import SwiftUI
 
-struct TransactionsListView: View {
+struct TransactionListView: View {
 	enum Mode {
 		case transactions
 		case recurring
@@ -287,7 +287,7 @@ struct TransactionsListView: View {
 
 	@ViewBuilder
 	private func transactionRow(_ transaction: Transaction) -> some View {
-		TransactionRow(
+		TransactionView(
 			transaction: transaction,
 			isExpanded: binding(for: transaction),
 			timeZone: timeZone
@@ -342,4 +342,8 @@ struct TransactionsListView: View {
 			viewModel.saveErrorMessage = error.localizedDescription
 		}
 	}
+}
+
+#Preview {
+	TransactionListView(account: .sampleData[0], viewModel: .init())
 }

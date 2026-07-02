@@ -1,6 +1,13 @@
+//
+//  TransactionView.swift
+//  Balance
+//
+//  Created by Eduardo Flores on 01/07/26.
+//
+
 import SwiftUI
 
-struct TransactionRow: View {
+struct TransactionView: View {
 	let transaction: Transaction
 	@Binding var isExpanded: Bool
 	let timeZone: TimeZone
@@ -172,7 +179,7 @@ struct TransactionRow: View {
 	@Previewable @State var isExpanded = true
 	
 	List {
-		TransactionRow(
+		TransactionView(
 			transaction: Transaction(
 				amount: -42.50,
 				note: "Coffee with team",

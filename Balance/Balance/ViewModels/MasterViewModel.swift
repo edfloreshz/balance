@@ -3,7 +3,7 @@ import Observation
 @Observable
 final class MasterViewModel {
 	var selectedCategory: Category = .savings
-	var sidebarSelection: SidebarSelection = .dashboard
+	var sidebarSelection: SidebarSelection = .category(.savings)
 	var selectedAccount: Account?
 	var accountSearchText: String = ""
 	var transactionSearchText: String = ""
