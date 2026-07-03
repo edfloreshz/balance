@@ -97,6 +97,10 @@ struct ContentView: View {
 				.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 			}
 		}
+		.navigationTitle("Accounts")
+#if !os(macOS)
+		.navigationBarTitleDisplayMode(.inline)
+#endif
 		.onChange(of: viewModel.accountSearchText) { _, _ in
 			guard let selectedAccount = viewModel.selectedAccount else { return }
 			if !filteredAccounts.contains(where: { $0.id == selectedAccount.id }) {

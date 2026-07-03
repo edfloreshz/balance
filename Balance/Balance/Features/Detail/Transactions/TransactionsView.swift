@@ -36,7 +36,7 @@ struct TransactionsView: View {
 			)
 		}
 		.navigationTitle(account.name)
-#if os(iOS)
+#if !os(macOS)
 			.navigationBarTitleDisplayMode(.inline)
 #endif
 			.sheet(item: $transactionsViewModel.addTransactionMode) { mode in

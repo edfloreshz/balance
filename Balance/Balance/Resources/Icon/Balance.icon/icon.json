@@ -1,0 +1,221 @@
+{
+  "fill-specializations" : [
+    {
+      "value" : {
+        "automatic-gradient" : "display-p3:0.80692,0.63578,0.38350,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "automatic-gradient" : "display-p3:0.07758,0.06147,0.03765,1.00000"
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "blur-material" : 0.5,
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "value" : {
+                "automatic-gradient" : "display-p3:0.92586,0.87540,0.52505,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "automatic-gradient" : "display-p3:0.61031,0.57553,0.34943,1.00000"
+              }
+            }
+          ],
+          "image-name" : "Lock.svg",
+          "name" : "Lock",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              197.06273155251188,
+              -277.7124547851201
+            ]
+          }
+        }
+      ],
+      "name" : "Lock",
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "blur-material" : 0.18,
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "value" : {
+                "automatic-gradient" : "display-p3:0.70659,0.44376,0.29966,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "automatic-gradient" : "display-p3:0.38072,0.24070,0.16636,1.00000"
+              }
+            }
+          ],
+          "image-name" : "Flap.svg",
+          "name" : "Flap",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              197.0625,
+              -325.49962580992
+            ]
+          }
+        }
+      ],
+      "name" : "Flap",
+      "opacity" : 0.8,
+      "refractivity" : {
+        "depth" : 0,
+        "enabled" : false,
+        "strength" : 0.5
+      },
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "fill" : {
+            "automatic-gradient" : "display-p3:0.81685,0.74691,0.63329,1.00000"
+          },
+          "image-name" : "Sewing 2.svg",
+          "name" : "Sewing"
+        }
+      ],
+      "lighting" : "individual",
+      "name" : "Sewing",
+      "opacity" : 1,
+      "refractivity" : {
+        "depth" : 0,
+        "enabled" : false,
+        "strength" : 0.5
+      },
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.6
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.2
+      }
+    },
+    {
+      "blur-material" : null,
+      "hidden" : false,
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "fill-specializations" : [
+            {
+              "value" : {
+                "automatic-gradient" : "display-p3:0.48027,0.28684,0.07885,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "automatic-gradient" : "display-p3:0.72287,0.65109,0.53556,1.00000"
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "automatic-gradient" : "display-p3:1.00000,1.00000,1.00000,1.00000"
+              }
+            }
+          ],
+          "glass" : true,
+          "image-name" : "Balance.svg",
+          "name" : "Balance",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              -0.2885955297280134
+            ]
+          }
+        },
+        {
+          "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "display-p3:0.48027,0.28684,0.07885,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "display-p3:0.74536,0.67355,0.55903,1.00000"
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "automatic-gradient" : "display-p3:1.00000,1.00000,1.00000,1.00000"
+              }
+            }
+          ],
+          "glass" : true,
+          "image-name" : "Hecho en Mexico.svg",
+          "name" : "Hecho en Mexico",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              409.453125
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "name" : "Text",
+      "opacity" : 1,
+      "refractivity" : {
+        "depth" : 0,
+        "enabled" : false,
+        "strength" : 0.5
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

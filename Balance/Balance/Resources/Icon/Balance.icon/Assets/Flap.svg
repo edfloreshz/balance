@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 271 373" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g transform="matrix(1,0,0,1,-512,0)">
+        <g transform="matrix(1.024,0,0,1.024,0,0)">
+            <g id="Flap" transform="matrix(0.976563,0,0,1.09526,0,0.182543)">
+                <path d="M782.411,-0.167L782.411,211.486C782.411,278.061 721.882,332.03 647.216,332.03L647.215,332.03C611.354,332.03 576.961,319.328 551.604,296.719C526.246,274.109 512,243.443 512,211.469L512,-0.167L782.411,-0.167Z" style="fill:rgb(134,134,134);"/>
+            </g>
+        </g>
+    </g>
+</svg>

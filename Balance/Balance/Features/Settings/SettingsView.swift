@@ -38,32 +38,34 @@ struct SettingsView: View {
 				EditorFieldRow("Daily Limit") {
 					HStack(spacing: 10) {
 						TextField("No limit", text: $dailyTransferLimitText)
-#if os(iOS)
+						#if os(iOS)
 							.keyboardType(.decimalPad)
-#endif
-							.textFieldStyle(.roundedBorder)
-							.onChange(of: dailyTransferLimitText) { _, newValue in
-								let sanitized = MoneyInputFormatter.sanitize(newValue)
-								if sanitized != newValue {
-									dailyTransferLimitText = sanitized
-									return
-								}
-								
-								let normalized = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-								if normalized.isEmpty {
-									dailyTransferLimit = 0
-									return
-								}
-								
-								if let parsedValue = MoneyInputFormatter.parse(normalized), parsedValue >= 0 {
-									dailyTransferLimit = parsedValue
-								}
+						#endif
+						#if os(macOS)
+						.textFieldStyle(.roundedBorder)
+						#endif
+						.onChange(of: dailyTransferLimitText) { _, newValue in
+							let sanitized = MoneyInputFormatter.sanitize(newValue)
+							if sanitized != newValue {
+								dailyTransferLimitText = sanitized
+								return
 							}
-							.onSubmit {
-								if dailyTransferLimit > 0 {
-									dailyTransferLimitText = MoneyInputFormatter.format(dailyTransferLimit)
-								}
+								
+							let normalized = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+							if normalized.isEmpty {
+								dailyTransferLimit = 0
+								return
 							}
+								
+							if let parsedValue = MoneyInputFormatter.parse(normalized), parsedValue >= 0 {
+								dailyTransferLimit = parsedValue
+							}
+						}
+						.onSubmit {
+							if dailyTransferLimit > 0 {
+								dailyTransferLimitText = MoneyInputFormatter.format(dailyTransferLimit)
+							}
+						}
 						
 						Text(globalCurrencyCode)
 							.font(.subheadline.weight(.medium))

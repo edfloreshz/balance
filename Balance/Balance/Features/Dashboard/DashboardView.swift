@@ -28,6 +28,9 @@ struct DashboardView: View {
 			.padding(16)
 		}
 		.navigationTitle("Dashboard")
+#if !os(macOS)
+			.navigationBarTitleDisplayMode(.inline)
+#endif
 	}
 	
 	private var summaryCards: some View {
@@ -78,7 +81,6 @@ struct DashboardView: View {
 		}
 	}
 	
-	@ViewBuilder
 	private func metricCard(_ title: String, value: Double? = nil, textValue: String? = nil, accent: Color) -> some View {
 		VStack(alignment: .leading, spacing: 8) {
 			Text(title)

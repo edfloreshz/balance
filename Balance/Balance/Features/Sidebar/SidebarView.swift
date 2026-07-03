@@ -9,7 +9,7 @@ import SwiftUI
 
 struct SidebarView: View {
 	@Bindable var viewModel: MasterViewModel
-	
+
 	private var sidebarSelection: Binding<SidebarSelection?> {
 		Binding(
 			get: { viewModel.sidebarSelection },
@@ -28,7 +28,7 @@ struct SidebarView: View {
 				}
 				.tag(SidebarSelection.dashboard)
 			}
-			
+
 			Section("Categories") {
 				ForEach(Category.allCases) { category in
 					NavigationLink(value: SidebarSelection.category(category)) {
@@ -38,6 +38,10 @@ struct SidebarView: View {
 				}
 			}
 		}
+		.navigationTitle("Balance")
+#if !os(macOS)
+			.navigationBarTitleDisplayMode(.inline)
+#endif
 	}
 }
 

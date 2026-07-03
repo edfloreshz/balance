@@ -44,31 +44,25 @@ struct MasterView: View {
 	}
 
 	var body: some View {
-		Group {
+		NavigationSplitView {
+			SidebarView(viewModel: viewModel)
+				.toolbar(content: sidebarToolbar)
+				.navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 320)
+		} content: {
 			if case .category = viewModel.sidebarSelection {
-				NavigationSplitView {
-					SidebarView(viewModel: viewModel)
-						.navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 320)
-						.toolbar(content: sidebarToolbarContent)
-				} content: {
-					ContentView(viewModel: viewModel)
-						.toolbar(content: contentToolbarContent)
-						.navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 520)
-				} detail: {
-					DetailView(viewModel: viewModel)
-						.toolbar(content: detailToolbarContent)
-				}
-				.searchable(text: $viewModel.activeSearchText, placement: .toolbar, prompt: viewModel.searchPrompt)
+				ContentView(viewModel: viewModel)
+					.toolbar(content: contentToolbar)
+					.navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 520)
+			}
+		} detail: {
+			if case .category = viewModel.sidebarSelection {
+				DetailView(viewModel: viewModel)
+					.toolbar(content: detailToolbar)
 			} else {
-				NavigationSplitView {
-					SidebarView(viewModel: viewModel)
-						.toolbar(content: sidebarToolbarContent)
-						.navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 320)
-				} detail: {
-					DashboardView()
-				}
+				DashboardView()
 			}
 		}
+		.searchable(text: $viewModel.activeSearchText, placement: .toolbar, prompt: viewModel.searchPrompt)
 		.sheet(isPresented: $viewModel.showingAddAccount) {
 			AccountEditorView(selectedCategory: viewModel.selectedCategory) { account in
 				viewModel.handleAccountCreated(account)
@@ -136,8 +130,8 @@ struct MasterView: View {
 	}
 	
 	@ToolbarContentBuilder
-	private func sidebarToolbarContent() -> some ToolbarContent {
-		ToolbarItem(placement: .secondaryAction) {
+	private func sidebarToolbar() -> some ToolbarContent {
+		ToolbarItem(placement: .primaryAction) {
 			Button {
 				viewModel.showingSettings = true
 			} label: {
@@ -148,7 +142,7 @@ struct MasterView: View {
 	}
 	
 	@ToolbarContentBuilder
-	private func contentToolbarContent() -> some ToolbarContent {
+	private func contentToolbar() -> some ToolbarContent {
 #if os(macOS)
 		ToolbarItem(placement: .automatic) {
 			Button {
@@ -190,7 +184,7 @@ struct MasterView: View {
 	}
 	
 	@ToolbarContentBuilder
-	private func detailToolbarContent() -> some ToolbarContent {
+	private func detailToolbar() -> some ToolbarContent {
 		ToolbarItem(placement: .primaryAction) {
 			Button {
 				viewModel.showAddTransaction(initialKind: .expense)
