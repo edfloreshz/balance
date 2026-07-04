@@ -175,3 +175,41 @@ extension TransactionRepresentable {
 }
 
 extension Transaction: TransactionRepresentable {}
+
+/// Everything a row needs to render a transaction from the perspective of
+/// a particular account, with direction/amount/labels already resolved.
+///
+/// For a plain expense/income this is identical to the transaction's own
+/// values. For a transfer (send or request), viewing it from the
+/// `relatedAccount` side flips the type and sign so a "Request" template
+/// reads as incoming money on the receiving account and outgoing money on
+/// the paying account, even though both share the same underlying rows.
+struct TransactionDisplayContext {
+	let type: TransactionKind
+	let signedAmount: Double
+	let primaryAccountName: String
+	let counterpartyName: String?
+}
+
+extension Transaction {
+	func displayContext(for viewingAccountID: UUID) -> TransactionDisplayContext {
+		let viewedFromRelatedSide = account?.id != viewingAccountID && relatedAccount?.id == viewingAccountID
+
+		let resolvedType: TransactionKind = {
+			guard viewedFromRelatedSide else { return type }
+			switch type {
+			case .transferOut: return .transferIn
+			case .transferIn: return .transferOut
+			case .expense, .income: return type
+			}
+		}()
+
+		return TransactionDisplayContext(
+			type: resolvedType,
+			signedAmount: viewedFromRelatedSide ? -signedAmount : signedAmount,
+			primaryAccountName: (viewedFromRelatedSide ? relatedAccount?.name : account?.name) ?? "Unassigned",
+			counterpartyName: viewedFromRelatedSide ? account?.name : relatedAccount?.name
+		)
+	}
+}
+

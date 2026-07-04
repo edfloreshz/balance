@@ -11,9 +11,25 @@ struct TransactionView: View {
 	let transaction: Transaction
 	@Binding var isExpanded: Bool
 	let timeZone: TimeZone
+	/// The account whose list this row is being displayed in. Used to resolve
+	/// direction/amount/labels for transfers via `Transaction.displayContext(for:)`.
+	/// Pass `nil` to render using the transaction's own `account` as-is (e.g. previews).
+	var displayAccountID: UUID?
+
+	private var context: TransactionDisplayContext {
+		guard let displayAccountID else {
+			return TransactionDisplayContext(
+				type: transaction.type,
+				signedAmount: transaction.signedAmount,
+				primaryAccountName: transaction.account?.name ?? "Unassigned",
+				counterpartyName: transaction.relatedAccount?.name
+			)
+		}
+		return transaction.displayContext(for: displayAccountID)
+	}
 	
 	private var iconName: String {
-		switch transaction.type {
+		switch context.type {
 		case .expense:
 			return "arrow.up.right"
 		case .income:
@@ -26,7 +42,7 @@ struct TransactionView: View {
 	}
 	
 	private var typeName: String {
-		switch transaction.type {
+		switch context.type {
 		case .expense:
 			return "Expense"
 		case .income:
@@ -39,7 +55,7 @@ struct TransactionView: View {
 	}
 	
 	private var accentColor: Color {
-		switch transaction.type {
+		switch context.type {
 		case .expense:
 			return .red
 		case .income:
@@ -52,7 +68,7 @@ struct TransactionView: View {
 	}
 	
 	private var amountColor: Color {
-		switch transaction.type {
+		switch context.type {
 		case .expense:
 			return .primary
 		case .income:
@@ -107,7 +123,7 @@ struct TransactionView: View {
 				
 				Spacer()
 				
-				Text(transaction.signedAmount, format: .currency(code: transaction.account?.currency ?? "USD"))
+				Text(context.signedAmount, format: .currency(code: transaction.account?.currency ?? "USD"))
 					.font(.body.weight(.semibold))
 					.foregroundStyle(amountColor)
 			}
@@ -120,9 +136,9 @@ struct TransactionView: View {
 						"Date",
 						value: formattedDetailDate(transaction.date)
 					)
-					detailRow("Account", value: transaction.account?.name ?? "Unassigned")
-					if transaction.type == .transferOut || transaction.type == .transferIn {
-						detailRow("Counterparty", value: transaction.relatedAccount?.name ?? "Unknown")
+					detailRow("Account", value: context.primaryAccountName)
+					if context.type == .transferOut || context.type == .transferIn {
+						detailRow("Counterparty", value: context.counterpartyName ?? "Unknown")
 					}
 					if let recurrenceFrequency = transaction.recurrenceFrequency {
 						detailRow("Repeat", value: recurrenceFrequency.displayName)

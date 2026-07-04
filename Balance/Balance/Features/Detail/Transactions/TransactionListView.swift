@@ -42,7 +42,7 @@ struct TransactionListView: View {
 			}
 		case .recurring:
 			predicate = #Predicate<Transaction> { transaction in
-				transaction.account?.id == accountID
+				(transaction.account?.id == accountID || transaction.relatedAccount?.id == accountID)
 				&& transaction.recurrenceFrequencyRawValue != nil
 				&& transaction.recurrenceSeriesID == nil
 			}
@@ -252,7 +252,10 @@ struct TransactionListView: View {
 		viewModel.selectedTransactionIDs.remove(transaction.id)
 
 		if mode == .transactions {
-			account.balance -= transaction.amount
+			// Adjust whichever account actually owns this row, which may differ
+			// from the account whose list is being viewed (e.g. a "Request"
+			// transfer's occurrence shown on the requesting/receiving account).
+			transaction.account?.balance -= transaction.amount
 			
 			if let transferGroupID = transaction.transferGroupID {
 				if let counterpart = allTransactions.first(where: {
@@ -294,7 +297,8 @@ struct TransactionListView: View {
 		TransactionView(
 			transaction: transaction,
 			isExpanded: binding(for: transaction),
-			timeZone: timeZone
+			timeZone: timeZone,
+			displayAccountID: account.id
 		)
 		.id("\(transaction.id)-\(viewModel.expandedTransactionIDs.contains(transaction.id))")
 		.tag(transaction.id)

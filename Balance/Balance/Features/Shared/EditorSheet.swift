@@ -79,17 +79,20 @@ struct EditorSheet<Content: View>: View {
 			.padding(.horizontal, 24)
 			.padding(.top, 24)
 			.padding(.bottom, 20)
-
+			
 			Divider()
-
-			VStack(alignment: .leading, spacing: 20) {
-				content
+			
+			ScrollView {
+				VStack(alignment: .leading, spacing: 20) {
+					content
+				}
+				.padding(24)
+				.frame(maxWidth: .infinity, alignment: .leading)
 			}
-			.padding(24)
-			.frame(maxWidth: .infinity, alignment: .leading)
-
+			.frame(maxHeight: 480)
+			
 			Divider()
-
+			
 			HStack {
 				Spacer()
 				Button(cancelLabel, action: onCancel)
@@ -101,7 +104,6 @@ struct EditorSheet<Content: View>: View {
 			.padding(.vertical, 16)
 		}
 		.frame(minWidth: 540, idealWidth: 560, maxWidth: 620)
-		.fixedSize(horizontal: false, vertical: true)
 	}
 	#endif
 }

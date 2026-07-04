@@ -29,7 +29,7 @@ struct TransactionEditorView: View {
 	@State private var amountText: String = ""
 	@State private var date: Date = .now
 	@State private var selectedKind: TransactionKind
-	@State private var destinationAccountID: UUID?
+	@State private var counterpartyAccountID: UUID?
 	@State private var isRecurring: Bool = false
 	@State private var recurrenceFrequency: RecurrenceFrequency = .monthly
 	@State private var hasRecurrenceStartDate: Bool = false
@@ -37,6 +37,7 @@ struct TransactionEditorView: View {
 	@State private var hasRecurrenceEndDate: Bool = false
 	@State private var recurrenceEndDate: Date = .now
 	@State private var saveErrorMessage: String?
+	@State private var transferDirection: TransferDirection = .send
 	
 	init(
 		account: Account,
@@ -139,8 +140,8 @@ struct TransactionEditorView: View {
 	}
 	
 	private var selectedDestinationAccount: Account? {
-		guard let destinationAccountID else { return nil }
-		return availableDestinationAccounts.first(where: { $0.id == destinationAccountID })
+		guard let counterpartyAccountID else { return nil }
+		return availableDestinationAccounts.first(where: { $0.id == counterpartyAccountID })
 	}
 	
 	private var effectiveRecurrenceStartDate: Date {
@@ -240,10 +241,19 @@ struct TransactionEditorView: View {
 				}
 				
 				if isTransfer {
-					EditorFieldRow("To Account") {
-						Picker("To Account", selection: Binding(
-							get: { destinationAccountID },
-							set: { destinationAccountID = $0 }
+					EditorFieldRow("Direction") {
+						Picker("Direction", selection: $transferDirection) {
+							ForEach(TransferDirection.allCases) { direction in
+								Text(direction.displayName).tag(direction)
+							}
+						}
+						.pickerStyle(.segmented)
+					}
+					
+					EditorFieldRow(transferDirection == .send ? "To Account" : "From Account") {
+						Picker(transferDirection == .send ? "To Account" : "From Account", selection: Binding(
+							get: { counterpartyAccountID },
+							set: { counterpartyAccountID = $0 }
 						)) {
 							Text("Select account").tag(Optional<UUID>.none)
 							ForEach(availableDestinationAccounts) { destination in
@@ -453,16 +463,16 @@ struct TransactionEditorView: View {
 		.onAppear {
 			AppPreferences.synchronizeAutomaticTimeZoneIfNeeded()
 			guard !isEditing else { return }
-			if isTransfer, destinationAccountID == nil {
-				destinationAccountID = availableDestinationAccounts.first?.id
+			if isTransfer, counterpartyAccountID == nil {
+				counterpartyAccountID = availableDestinationAccounts.first?.id
 			}
 			recurrenceStartDate = date
 			recurrenceEndDate = date
 		}
 		.onChange(of: selectedKind) { _, kind in
 			guard !isEditing else { return }
-			if kind == .transferOut, destinationAccountID == nil {
-				destinationAccountID = availableDestinationAccounts.first?.id
+			if kind == .transferOut, counterpartyAccountID == nil {
+				counterpartyAccountID = availableDestinationAccounts.first?.id
 			}
 		}
 		.onChange(of: date) { _, newDate in
@@ -557,10 +567,15 @@ struct TransactionEditorView: View {
 		}
 		
 		if isTransfer {
-			guard let destinationAccount = selectedDestinationAccount else {
-				saveErrorMessage = "Select a destination account."
+			guard let counterpartyAccount = selectedDestinationAccount else {
+				saveErrorMessage = "Select an account."
 				return
 			}
+			
+			// "Send": current account pays, counterparty receives.
+			// "Request": counterparty pays, current account receives.
+			let payerAccount = transferDirection == .send ? account : counterpartyAccount
+			let receiverAccount = transferDirection == .send ? counterpartyAccount : account
 			
 			let transferAmount = abs(rawAmount)
 			if isRecurring {
@@ -571,8 +586,8 @@ struct TransactionEditorView: View {
 					frequency: recurrenceFrequency,
 					startDate: effectiveRecurrenceStartDate,
 					endDate: hasRecurrenceEndDate ? recurrenceEndDate : nil,
-					account: account,
-					relatedAccount: destinationAccount
+					account: payerAccount,
+					relatedAccount: receiverAccount
 				)
 				modelContext.insert(recurring)
 				tryProcessRecurringNow(for: recurring)
@@ -586,8 +601,8 @@ struct TransactionEditorView: View {
 					date: date,
 					type: .transferOut,
 					transferGroupID: transferGroupID,
-					account: account,
-					relatedAccount: destinationAccount
+					account: payerAccount,
+					relatedAccount: receiverAccount
 				)
 				
 				let destinationTransaction = Transaction(
@@ -596,43 +611,15 @@ struct TransactionEditorView: View {
 					date: date,
 					type: .transferIn,
 					transferGroupID: transferGroupID,
-					account: destinationAccount,
-					relatedAccount: account
+					account: receiverAccount,
+					relatedAccount: payerAccount
 				)
 				
 				modelContext.insert(sourceTransaction)
 				modelContext.insert(destinationTransaction)
 				
-				account.balance -= transferAmount
-				destinationAccount.balance += transferAmount
-			}
-		} else {
-			let amount = effectiveKind == .expense ? -abs(rawAmount) : abs(rawAmount)
-			let type: TransactionKind = effectiveKind == .expense ? .expense : .income
-			
-			if isRecurring {
-				let recurring = Transaction(
-					amount: abs(rawAmount),
-					note: note,
-					type: type,
-					frequency: recurrenceFrequency,
-					startDate: effectiveRecurrenceStartDate,
-					endDate: hasRecurrenceEndDate ? recurrenceEndDate : nil,
-					account: account
-				)
-				modelContext.insert(recurring)
-				tryProcessRecurringNow(for: recurring)
-				if saveErrorMessage != nil { return }
-			} else {
-				let transaction = Transaction(
-					amount: amount,
-					note: note,
-					date: date,
-					type: type,
-					account: account
-				)
-				modelContext.insert(transaction)
-				account.balance += amount
+				payerAccount.balance -= transferAmount
+				receiverAccount.balance += transferAmount
 			}
 		}
 	}
