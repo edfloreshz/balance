@@ -296,6 +296,7 @@ struct TransactionListView: View {
 			isExpanded: binding(for: transaction),
 			timeZone: timeZone
 		)
+		.id("\(transaction.id)-\(viewModel.expandedTransactionIDs.contains(transaction.id))")
 		.tag(transaction.id)
 		.swipeActions(edge: .trailing, allowsFullSwipe: false) {
 			Button {

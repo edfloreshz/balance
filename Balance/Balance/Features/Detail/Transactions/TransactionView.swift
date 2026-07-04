@@ -147,7 +147,6 @@ struct TransactionView: View {
 				.padding(.bottom, 8)
 			}
 		}
-		.animation(.default, value: isExpanded)
 	}
 	
 	@ViewBuilder
